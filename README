@@ -1,0 +1,25 @@
+     _____                 
+    (, /   ) /)   ,        
+      /__ / (/     __   ___
+   ) /   \_ / )__(_/ (_(_)   Tools
+  (_/                      
+       Reconfigurable Hardware Interface
+          for computatioN and radiO
+          
+  ========================================
+        http://www.rhinoplatform.org
+  ========================================
+
+Prerequisites
+-------------
+
+ * Migen (https://github.com/brandonhamilton/migen)
+ * Python 3.2
+
+Building
+--------
+
+$ python3 build.py
+
+Look in the build/ directory
+

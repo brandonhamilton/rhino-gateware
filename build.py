@@ -29,7 +29,7 @@
 #   along with rhino-tools.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
-import rhino_platform
+import rhino.platform
 
 #-----------------------------------------------------------------------------#
 # Helper functions and classes                                                #
@@ -123,13 +123,13 @@ os.chdir("build")
 
 # 3. Generate additional sources with migen
 generated_hdl_file = "rhino.v"
-generated_hdl_src = rhino_platform.top()
+generated_hdl_src = rhino.platform.top()
 writeToFile(generated_hdl_file, generated_hdl_src)
 sources.extend([{"type":"verilog", "path":"build/rhino.v"}])
 
 # 4. Create User Constraints file
 ucf_file = "rhino.ucf"
-ucf_src = rhino_platform.ucf()
+ucf_src = rhino.platform.ucf()
 writeToFile(ucf_file, ucf_src)
 
 # 5. Synthesize project

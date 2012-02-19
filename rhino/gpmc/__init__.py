@@ -10,7 +10,7 @@
 #        http://www.rhinoplatform.org
 #  ========================================
 #
-#   Rhino platform generator
+#   Rhino platform - GPMC core
 #   Copyright (C) 2012 Brandon Hamilton
 #
 #   This file is part of rhino-tools.
@@ -29,16 +29,14 @@
 #   along with rhino-tools.  If not, see <http://www.gnu.org/licenses/>.
 
 from migen.fhdl.structure import *
-from migen.fhdl import verilog, autofragment
 
-# Return top module
-def top():
-    return ""
+class gpmc:
+    def __init__(self):
+        pass
+    
+    def get_fragment(self):
+        return Fragment()
 
-# Return platform constraints
-def get_constraints():
-    return ""
+    def get_constraints(self):
+        return """"""
 
-# Return symbol table
-def get_symbols():
-    return ""

@@ -124,19 +124,18 @@ os.system("rm -rf build/*")
 os.chdir("build")
 
 # 3. Generate additional sources with migen
+(generated_hdl_src, ucf_src, symtab_src) = rhino.platform.generate()
+
 generated_hdl_file = "%s.v" % (build_name)
-generated_hdl_src = rhino.platform.top()
 writeToFile(generated_hdl_file, generated_hdl_src)
 sources.extend([{"type":"verilog", "path":"build/%s.v" % (build_name), "library":"%s" % (build_name)}])
 
 # 4. Create User Constraints file
 ucf_file = "%s.ucf" % (build_name)
-ucf_src = rhino.platform.get_constraints()
 writeToFile(ucf_file, ucf_src)
 
 # 5. Create BORPH symbol table
 symtab_file = "%s.symtab" % (build_name)
-symtab_src = rhino.platform.get_symbols()
 writeToFile(symtab_file, symtab_src)
 
 # 5. Synthesize project

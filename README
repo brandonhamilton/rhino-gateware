@@ -15,6 +15,7 @@ Prerequisites
 
  * Migen (https://github.com/brandonhamilton/migen)
  * mkbof (https://github.com/brandonhamilton/rhino/tree/master/borph/tools/borph)
+ * Xilinx ISE command line tools
  * Python 3.2
 
 Building
@@ -22,5 +23,5 @@ Building
 
 $ python3 build.py
 
-Look in the build/ directory
+Look in the build/ directory for the .bof file
 

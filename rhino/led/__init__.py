@@ -10,7 +10,7 @@
 #        http://www.rhinoplatform.org
 #  ========================================
 #
-#   Rhino platform - GPMC core
+#   Rhino platform - LED core
 #   Copyright (C) 2012 Brandon Hamilton
 #
 #   This file is part of rhino-tools.
@@ -30,7 +30,7 @@
 
 from migen.fhdl.structure import *
 
-class GPMC:
+class LED:
     def __init__(self, clk):
         # Implement initialisation here
         pass
@@ -38,5 +38,4 @@ class GPMC:
     def get_fragment(self):
         # Return fragment with combinatoral and synchronous lists here
         return Fragment()
-
 

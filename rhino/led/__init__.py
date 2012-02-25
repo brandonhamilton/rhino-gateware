@@ -29,13 +29,19 @@
 #   along with rhino-tools.  If not, see <http://www.gnu.org/licenses/>.
 
 from migen.fhdl.structure import *
+from migen.bank import description
 
 class LED:
-    def __init__(self, clk):
-        # Implement initialisation here
-        pass
+
+    COUNT = 8
+
+    def __init__(self):
+        self.led_register = Signal(BV(LED.COUNT))
+        self.led_register.eq(0b10101010)
+        self.led_sync = [self.led_register.eq((self.led_register >> 1) | (self.led_register << 1 & 0b1000000))]
     
     def get_fragment(self):
+
         # Return fragment with combinatoral and synchronous lists here
-        return Fragment()
+        return Fragment(sync=self.led_sync, pads={self.led_register})
 

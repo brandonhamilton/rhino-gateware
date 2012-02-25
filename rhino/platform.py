@@ -36,8 +36,34 @@ from rhino import led, gpmc
 DEBUG = True
 
 # Create the User Constraints file for the platform
-def _createConstraints(gpmc, leds):
+def _createConstraints(ns, gpmc, leds):
+    constraints = []
+
+    # Helper methods
+    def add(signal, pin, vec=-1, iostandard="LVCMOS33", extra=""):
+        constraints.append((ns.get_name(signal), vec, pin, iostandard, extra))
+    
+    def add_vec(signal, pins, iostandard="LVCMOS33", extra=""):
+        assert(signal.bv.width == len(pins))
+        i = 0
+        for p in pins:
+            add(signal, p, i, iostandard, extra)
+            i += 1
+
+    # Generate constraints for components
+    add_vec(leds.led_register, ["Y3","Y1","W2","W1","V3","V1","U2","U1"])
+
+    # Convert to UCF
     c = ""
+    for constraint in constraints:
+        c += "NET \"" + constraint[0]
+        if constraint[1] >= 0:
+            c += "(" + str(constraint[1]) + ")"
+        c += "\" LOC = " + constraint[2] 
+        c += " | IOSTANDARD = " + constraint[3]
+        if constraint[4]:
+            c += " | " + constraint[4]
+        c += ";\n"
 
     # Add timing constraints
     c += """
@@ -57,15 +83,15 @@ def generate():
     sys_reset = Signal(name="sys_rst")
 
     # === Build the platform here ===
-    led_obj = led.LED(sys_clk)
+    led_obj = led.LED()
     gpmc_obj = gpmc.GPMC(sys_clk)
 
     frag = autofragment.from_local()
         
     # Generate HDL code
-    verilog_source = verilog.convert(frag, { sys_clk, sys_reset }, name="rhino", clk_signal=sys_clk, rst_signal=sys_reset)
+    verilog_source, verilog_namespace = verilog.convert(frag, { sys_clk, sys_reset }, name="rhino", clk_signal=sys_clk, rst_signal=sys_reset, return_ns=True)
     # Generate platform constraints
-    platform_constraints = _createConstraints(led_obj, gpmc_obj)
+    platform_constraints = _createConstraints(verilog_namespace, gpmc_obj,led_obj)
     # Generate register definitions
     register_definitions = _createRegisterDefinitions()
 

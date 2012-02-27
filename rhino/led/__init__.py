@@ -36,8 +36,7 @@ class LED:
     COUNT = 8
 
     def __init__(self):
-        self.led_register = Signal(BV(LED.COUNT))
-        self.led_register.eq(0b10101010)
+        self.led_register = Signal(BV(LED.COUNT), reset=0b10101010)
         self.led_sync = [self.led_register.eq((self.led_register >> 1) | (self.led_register << 1 & 0b1000000))]
     
     def get_fragment(self):

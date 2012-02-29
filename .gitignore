@@ -3,3 +3,4 @@ build/*
 *.o
 *.d
 *.a
+.vimrc

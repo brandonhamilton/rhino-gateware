@@ -37,7 +37,7 @@ from rhino import led, gpmc, clkgen
 DEBUG = True
 
 # Create the User Constraints file for the platform
-def _createConstraints(ns,clkgen,leds):
+def _createConstraints(ns,clkgen,leds,sys_reset):
     constraints = []
 
     # Helper methods
@@ -53,8 +53,9 @@ def _createConstraints(ns,clkgen,leds):
 
     # Generate constraints for components
     add_vec(leds.led_register, ["Y3","Y1","W2","W1","V3","V1","U2","U1"])
-    add(clkgen.sys_clk_p_i,"D3")
-    add(clkgen.sys_clk_n_i,"D4")
+    add(clkgen.sys_clk_p_i,"B14",iostandard="LVDS_25",extra="DIFF_TERM=TRUE")
+    add(clkgen.sys_clk_n_i,"A14",iostandard="LVDS_25",extra="DIFF_TERM=TRUE")
+    add(sys_reset,"R8",extra="SLEW=SLOW")
     
     # Convert to UCF
     c = ""
@@ -98,7 +99,7 @@ def generate():
     # Generate HDL code
     verilog_source, verilog_namespace = verilog.convert(frag, { sys_reset }, name="rhino", rst_signal=sys_reset, clk_signal=clkgen_obj.sys_clk, return_ns=True)
     # Generate platform constraints
-    platform_constraints = _createConstraints(verilog_namespace,clkgen_obj,led_obj)
+    platform_constraints = _createConstraints(verilog_namespace,clkgen_obj,led_obj,sys_reset)
 	
     # Generate register definitions
     register_definitions = _createRegisterDefinitions()

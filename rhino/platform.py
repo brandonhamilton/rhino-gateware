@@ -17,10 +17,10 @@
 #
 #   rhino-tools is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
-#   the Free Software Foundation, either version 3 of the License, or
+#   the Free Software Foundation, either version 2 of the License, or
 #   (at your option) any later version.
 #
-#   rhino-tools is distributed in the hope that it will be useful,
+#   Foobar is distributed in the hope that it will be useful,
 #   but WITHOUT ANY WARRANTY; without even the implied warranty of
 #   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #   GNU General Public License for more details.
@@ -31,12 +31,12 @@
 from migen.fhdl.structure import *
 from migen.fhdl import verilog, autofragment
 
-from rhino import led, gpmc
+from rhino import led, gpmc, clkgen
 
 DEBUG = True
 
 # Create the User Constraints file for the platform
-def _createConstraints(ns, gpmc, leds):
+def _createConstraints(ns,leds,clkgen):
     constraints = []
 
     # Helper methods
@@ -52,6 +52,9 @@ def _createConstraints(ns, gpmc, leds):
 
     # Generate constraints for components
     add_vec(leds.led_register, ["Y3","Y1","W2","W1","V3","V1","U2","U1"])
+    add(clkgen.sys_clk_p_i,"D3")
+    add(clkgen.sys_clk_n_i,"D4")
+    
 
     # Convert to UCF
     c = ""
@@ -80,18 +83,22 @@ def _createRegisterDefinitions():
 def generate():
     # Create system clock
     sys_clk = Signal(name="sys_clk")
+    #no_sys_clk = Signal()
     sys_reset = Signal(name="sys_rst")
 
     # === Build the platform here ===
     led_obj = led.LED()
-    gpmc_obj = gpmc.GPMC(sys_clk)
+    #gpmc_obj = gpmc.GPMC(sys_clk)
+    clkgen_obj = clkgen.CLKGEN()
 
     frag = autofragment.from_local()
         
     # Generate HDL code
-    verilog_source, verilog_namespace = verilog.convert(frag, { sys_clk, sys_reset }, name="rhino", clk_signal=sys_clk, rst_signal=sys_reset, return_ns=True)
+    verilog_source, verilog_namespace = verilog.convert(frag, { sys_clk,sys_reset }, name="rhino", rst_signal=sys_reset,clk_signal=sys_clk,return_ns=True)
     # Generate platform constraints
-    platform_constraints = _createConstraints(verilog_namespace, gpmc_obj,led_obj)
+    #platform_constraints = _createConstraints(verilog_namespace, gpmc_obj,led_obj)
+    platform_constraints = _createConstraints(verilog_namespace,led_obj,clkgen_obj)
+	
     # Generate register definitions
     register_definitions = _createRegisterDefinitions()
 

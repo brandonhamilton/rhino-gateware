@@ -18,10 +18,19 @@ Prerequisites
  * Xilinx ISE command line tools
  * Python 3.2
 
+Creating a new application
+--------------------------
+
+Copy the application/template directory and edit the top.py file for the new application
+
 Building
 --------
 
+To build all applications:
 $ python3 build.py
 
-Look in the build/ directory for the .bof file
+To build only specified applications:
+$ python3 build.py application1 application2
+
+Look in the application output directory for the .bof file
 

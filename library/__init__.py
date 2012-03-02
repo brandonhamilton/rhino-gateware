@@ -10,7 +10,7 @@
 #        http://www.rhinoplatform.org
 #  ========================================
 #
-#   Rhino platform generator
+#   Rhino platform libraries
 #   Copyright (C) 2012 Brandon Hamilton
 #
 #   This file is part of rhino-tools.
@@ -28,4 +28,4 @@
 #   You should have received a copy of the GNU General Public License
 #   along with rhino-tools.  If not, see <http://www.gnu.org/licenses/>.
 
-__all__ = ["platform"]
+__all__ = ['migen']

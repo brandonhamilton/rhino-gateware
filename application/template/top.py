@@ -32,7 +32,6 @@ from migen.fhdl.structure import *
 from migen.fhdl import verilog, autofragment
 
 from library.migen import clkgen
-import build 
 
 #--------------------------------------------------------------------------------#
 # Generate application HDL source code                                           #

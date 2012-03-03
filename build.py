@@ -173,48 +173,52 @@ if __name__ == "__main__":
     # Build each application
     for build_name in apps:
         print(" Building '%s'..." % build_name)
+        changed_dir = False
+        try:
+            # 1. Import the application
+            application_module = imp.load_source('%s' % build_name, 'application/%s/top.py' % (build_name))
 
-        # 1. Import the application
-        application_module = imp.load_source('%s' % build_name, 'application/%s/top.py' % (build_name))
+            # 2. Setup build dir
+            os.chdir("application/%s" % build_name)
+            changed_dir = True
+            ensure_dirs(['build', 'output'])
+            os.system("rm -rf output/*")
+            os.system("rm -rf build/*")
+            os.chdir("build")
+            
+            # 4. Generate additional sources with migen
+            (generated_hdl_src, namespace, symtab_src, signals) = application_module.get_application(build_name)
+            if DEBUG:
+                print("----[Verilog]------------")
+                print(generated_hdl_src)
+            generated_hdl_file = "%s.v" % (build_name)
+            write_to_file(generated_hdl_file, generated_hdl_src)
+            app_source_hdl = [{"type":"verilog", "path":"build/%s.v" % (build_name), "library":"%s" % (build_name)}]
+            app_source_hdl.extend(source_hdl)
 
-        # 2. Setup build dir
-        os.chdir("application/%s" % build_name)
-        ensure_dirs(['build', 'output'])
-        os.system("rm -rf output/*")
-        os.system("rm -rf build/*")
-        os.chdir("build")
-        
-        # 4. Generate additional sources with migen
-        (generated_hdl_src, namespace, symtab_src, signals) = application_module.get_application(build_name)
-        if DEBUG:
-            print("----[Verilog]------------")
-            print(generated_hdl_src)
-        generated_hdl_file = "%s.v" % (build_name)
-        write_to_file(generated_hdl_file, generated_hdl_src)
-        app_source_hdl = [{"type":"verilog", "path":"build/%s.v" % (build_name), "library":"%s" % (build_name)}]
-        app_source_hdl.extend(source_hdl)
+            write_to_file("%s.symtab" % (build_name), symtab_src)
+            if DEBUG:
+                print("----[Registers]----------")
+                print(symtab_src)
 
-        write_to_file("%s.symtab" % (build_name), symtab_src)
-        if DEBUG:
-            print("----[Registers]----------")
-            print(symtab_src)
+            # 5. Generate platform code
+            ucf_src = platform_module.get_platform(namespace, signals)
+            write_to_file("%s.ucf" % (build_name), ucf_src)
+            if DEBUG:
+                print("----[Constraints]--------")
+                print(ucf_src)
+                print("-------------------------\r\n")
 
-        # 5. Generate platform code
-        ucf_src = platform_module.get_platform(namespace, signals)
-        write_to_file("%s.ucf" % (build_name), ucf_src)
-        if DEBUG:
-            print("----[Constraints]--------")
-            print(ucf_src)
-            print("-------------------------\r\n")
+            # 5. Synthesize project
+            builder = XilinxBuilder(app_source_hdl, name=build_name)
+            builder.build()
 
-        # 5. Synthesize project
-        builder = XilinxBuilder(app_source_hdl, name=build_name)
-        builder.build()
+            # 6. Move BOF file
+            if os.path.exists('%s.bof' % (build_name)):
+                os.system("mv %s.bof ../output/" % (build_name))
 
-        # 6. Move BOF file
-        if os.path.exists('%s.bof' % (build_name)):
-            os.system("mv %s.bof ../output/" % (build_name))
+            print(" Completed build of '%s'" % build_name)
+        except Exception as e:
+            print(" Build Error: %s" % (e));
 
-        print(" Completed build of '%s'" % build_name)
-
-        os.chdir("../../../")
+        if changed_dir: os.chdir("../../../")

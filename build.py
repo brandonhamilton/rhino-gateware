@@ -57,16 +57,16 @@ def ensure_dirs(d):
             os.makedirs(f)
 
 # Find all HDL source files within a path
-def find_hdl_source_files(path="."):
+def find_hdl_source_files(path=".", library="work", path_prefix=""):
     sources = []
     for root, dirs, files in os.walk(path):
         for name in files:
             try:
                 extension = name.rsplit('.')[-1]      
                 if extension in ["vhd", "vhdl", "vho"]:
-                    sources.extend([{"type": "vhdl", "path": os.path.join(root, name)}])
+                    sources.extend([{"type": "vhdl", "path": "%s%s" %  (path_prefix, os.path.join(root, name)), "library":library}])
                 elif extension in ["v", "vh", "vo"]:
-                    sources.extend([{"type": "verilog", "path": os.path.join(root, name)}])
+                    sources.extend([{"type": "verilog", "path": "%s%s" % (path_prefix, os.path.join(root, name)), "library":library}])
             except:
                 pass
     return sources
@@ -91,7 +91,7 @@ class XilinxBuilder:
         # Generate project file
         prjContents = ""
         for s in sources:
-            prjContents += "%s %s ../../../%s\n" % (s["type"], s["library"] if "library" in s else "work", s["path"])
+            prjContents += "%s %s ../%s\n" % (s["type"], s["library"] if "library" in s else "work", s["path"])
         write_to_file("%s.prj" % (self.build_name), prjContents)
         # Generate XST script
         xstContents = """run
@@ -167,8 +167,8 @@ if __name__ == "__main__":
 
     if 'template' in apps: apps.remove('template')
 
-    # Find all HDL source files
-    source_hdl = find_hdl_source_files("library/hdl")
+    # Find all library HDL source files
+    library_hdl = find_hdl_source_files("library/hdl", "lib", "../../")
 
     # Build each application
     for build_name in apps:
@@ -177,14 +177,17 @@ if __name__ == "__main__":
         try:
             # 1. Import the application
             application_module = imp.load_source('%s' % build_name, 'application/%s/top.py' % (build_name))
-
-            # 2. Setup build dir
             os.chdir("application/%s" % build_name)
-            changed_dir = True
+
+            # 2. Find all application HDL source files
+            application_hdl = find_hdl_source_files("hdl", build_name)
+
+            # 3. Setup build dir
             ensure_dirs(['build', 'output'])
             os.system("rm -rf output/*")
             os.system("rm -rf build/*")
             os.chdir("build")
+            changed_dir = True
             
             # 4. Generate additional sources with migen
             (generated_hdl_src, namespace, symtab_src, signals) = application_module.get_application(build_name)
@@ -193,15 +196,18 @@ if __name__ == "__main__":
                 print(generated_hdl_src)
             generated_hdl_file = "%s.v" % (build_name)
             write_to_file(generated_hdl_file, generated_hdl_src)
-            app_source_hdl = [{"type":"verilog", "path":"build/%s.v" % (build_name), "library":"%s" % (build_name)}]
-            app_source_hdl.extend(source_hdl)
+            application_include_hdl = [{"type":"verilog", "path":"build/%s.v" % (build_name), "library":"%s" % (build_name)}]
+
+            # 5. Include Library and application HDL files
+            application_include_hdl.extend(application_hdl)
+            application_include_hdl.extend(library_hdl)
 
             write_to_file("%s.symtab" % (build_name), symtab_src)
             if DEBUG:
                 print("----[Registers]----------")
                 print(symtab_src)
 
-            # 5. Generate platform code
+            # 6. Generate platform code
             ucf_src = platform_module.get_platform(namespace, signals)
             write_to_file("%s.ucf" % (build_name), ucf_src)
             if DEBUG:
@@ -209,11 +215,11 @@ if __name__ == "__main__":
                 print(ucf_src)
                 print("-------------------------\r\n")
 
-            # 5. Synthesize project
-            builder = XilinxBuilder(app_source_hdl, name=build_name)
+            # 6. Synthesize project
+            builder = XilinxBuilder(application_include_hdl, name=build_name)
             builder.build()
 
-            # 6. Move BOF file
+            # 8. Move BOF file
             if os.path.exists('%s.bof' % (build_name)):
                 os.system("mv %s.bof ../output/" % (build_name))
 

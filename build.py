@@ -174,10 +174,12 @@ if __name__ == "__main__":
     for build_name in apps:
         print(" Building '%s'..." % build_name)
         changed_dir = False
+        application_path = "application/%s" % build_name
+        sys.path.append(application_path)
         try:
             # 1. Import the application
-            application_module = imp.load_source('%s' % build_name, 'application/%s/top.py' % (build_name))
-            os.chdir("application/%s" % build_name)
+            application_module = imp.load_source('%s' % build_name, '%s/top.py' % (application_path))
+            os.chdir(application_path)
 
             # 2. Find all application HDL source files
             application_hdl = find_hdl_source_files("hdl", build_name)
@@ -227,4 +229,5 @@ if __name__ == "__main__":
         except Exception as e:
             print(" Build Error: %s" % (e));
 
+        sys.path.remove(application_path)
         if changed_dir: os.chdir("../../../")

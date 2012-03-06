@@ -31,7 +31,8 @@
 from migen.fhdl.structure import *
 from migen.fhdl import verilog, autofragment
 
-from library.migen import led, clkgen
+from library.migen import clkgen
+import led
 
 #--------------------------------------------------------------------------------#
 # Generate application HDL source code                                           #
@@ -48,7 +49,8 @@ def get_application(app_name):
     # Create the system clock generator
     clkgen_obj = clkgen.CLKGEN()
 
-    led_obj = led.LED()
+    # Create the led flasher
+    led_obj = led.LEDFlash()
 
     # =============================== #
     # Generate the register defitions

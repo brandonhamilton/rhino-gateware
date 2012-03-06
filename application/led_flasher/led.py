@@ -33,13 +33,13 @@ from migen.fhdl.structure import *
 from migen.bank import description
 import math
 
-class LED:
+class LEDFlash:
     COUNT = 8
 
     def __init__(self,clk_freq=100e6,sweep_freq=2):
         self.CLK_DIVIDE_COUNT   = int(clk_freq/sweep_freq)
         self.CLK_DIVIDE_COUNT_N = int(math.ceil(math.log(self.CLK_DIVIDE_COUNT,2)))
-        self.led_register = Signal(BV(LED.COUNT), reset = 0b10101010)
+        self.led_register = Signal(BV(LEDFlash.COUNT), reset = 0b10101010)
         self.clk_count = Signal(BV(self.CLK_DIVIDE_COUNT_N), reset = self.CLK_DIVIDE_COUNT)
         self.led_sync = [
                            If(self.clk_count == Constant(0,BV(self. CLK_DIVIDE_COUNT_N)),

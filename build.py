@@ -12,7 +12,7 @@
 #        http://www.rhinoplatform.org
 #  ========================================
 #
-#   Rhino platform build file
+#   Top Level Build file
 #   Copyright (C) 2012 Brandon Hamilton
 #
 #   This file is part of rhino-tools.
@@ -34,6 +34,8 @@ import os, sys
 import imp, inspect
 sys.path.append(os.getcwd())
 
+import tools
+
 #-----------------------------------------------------------------------------#
 # Build Settings                                                              #
 #-----------------------------------------------------------------------------#
@@ -41,120 +43,12 @@ platform = "rhino"  # Build platform
 DEBUG    = False    # Print generated code to stdout
 
 #-----------------------------------------------------------------------------#
-# Helper functions and classes                                                #
-#-----------------------------------------------------------------------------#
-
-# Save a string to a file
-def write_to_file(filename, contents):
-    f = open(filename, "w")
-    f.write(contents)
-    f.close()
-
-# Ensure a directory exists
-def ensure_dirs(d):
-    for f in d:
-        if not os.path.exists(f):
-            os.makedirs(f)
-
-# Find all HDL source files within a path
-def find_hdl_source_files(path=".", library="work", path_prefix=""):
-    sources = []
-    for root, dirs, files in os.walk(path):
-        for name in files:
-            try:
-                extension = name.rsplit('.')[-1]      
-                if extension in ["vhd", "vhdl", "vho"]:
-                    sources.extend([{"type": "vhdl", "path": "%s%s" %  (path_prefix, os.path.join(root, name)), "library":library}])
-                elif extension in ["v", "vh", "vo"]:
-                    sources.extend([{"type": "verilog", "path": "%s%s" % (path_prefix, os.path.join(root, name)), "library":library}])
-            except:
-                pass
-    return sources
-
-# Return a list of migen components
-def get_components():
-    f = []
-    frame = inspect.currentframe().f_back
-    ns = frame.f_locals
-    for x in ns:
-        obj = ns[x]
-        if hasattr(obj, "get_fragment"):
-            f.append(obj)
-    return f
-
-# Xilinx FPGA-based build toolflow
-class XilinxBuilder:
-    def __init__(self, sources, *, name="rhino", ucf=None, top=None):
-        self.build_name = name
-        self.ucf_file = ucf and ucf or "%s.ucf" % (name)
-        self.top_module = top and top or name
-        # Generate project file
-        prjContents = ""
-        for s in sources:
-            prjContents += "%s %s ../%s\n" % (s["type"], s["library"] if "library" in s else "work", s["path"])
-        write_to_file("%s.prj" % (self.build_name), prjContents)
-        # Generate XST script
-        xstContents = """run
--ifn %s.prj
--top %s
--ifmt MIXED
--opt_mode SPEED
--reduce_control_sets auto
--ofn %s.ngc
--p xc6slx150t-fgg676-3""" % (self.build_name, self.top_module, self.build_name)
-        write_to_file("%s.xst" % (self.build_name), xstContents)
-
-    def _build_netlist(self):
-        os.system("xst -ifn %s.xst" % (self.build_name))
-
-    def _build_native_generic_database(self):
-        os.system("ngdbuild -uc %s %s.ngc" % (self.ucf_file, self.build_name))
-
-    def _build_native_circuit_description(self):
-        os.system("map -ol high -w %s.ngd" % (self.build_name))
-
-    def _perform_place_and_route(self):
-        os.system("par -ol high -w %s.ncd %s-routed.ncd" % (self.build_name, self.build_name))
-
-    def _build_bitstream(self):
-        os.system("bitgen -g Binary:Yes -w %s-routed.ncd %s.bit" % (self.build_name, self.build_name))
-
-    def _build_borph_object_file(self):
-        os.system("mkbof -t 5 -s %s.symtab -o %s.bof %s.bin" % (self.build_name,self.build_name, self.build_name))
-
-    def build(self):
-        # XST
-        self._build_netlist()
-        # NGD
-        self._build_native_generic_database()
-        # Mapping
-        self._build_native_circuit_description()
-        # Place and Route
-        self._perform_place_and_route()
-        # Generate FPGA configuration
-        self._build_bitstream()
-        # BORPH Object file (BOF) generation
-        self._build_borph_object_file()
-
-def print_header():
-    print('     _____                               ')
-    print('    (, /   ) /)   ,                      ')
-    print('      /__ / (/     __   ___              ')
-    print('   ) /   \_ / )__(_/ (_(_)   Tools       ')
-    print('  (_/                                    ')
-    print('       Reconfigurable Hardware Interface ')
-    print('          for computatioN and radiO      \r\n')
-    print(' ========================================')
-    print('        http://www.rhinoplatform.org')
-    print(' ========================================\r\n')
-
-#-----------------------------------------------------------------------------#
 # Perform Build steps                                                         #
 #-----------------------------------------------------------------------------#
 
 if __name__ == "__main__":
 
-    print_header()
+    tools.print_header()
 
     # Load platform
     platform_module = imp.load_source('%s' % (platform), 'platform/%s/platform.py' % (platform))
@@ -168,7 +62,7 @@ if __name__ == "__main__":
     if 'template' in apps: apps.remove('template')
 
     # Find all library HDL source files
-    library_hdl = find_hdl_source_files("library/hdl", "lib", "../../")
+    library_hdl = tools.find_hdl_source_files("library/hdl", "lib", "../../")
 
     # Build each application
     for build_name in apps:
@@ -177,15 +71,16 @@ if __name__ == "__main__":
         application_path = "application/%s" % build_name
         sys.path.append(application_path)
         try:
-            # 1. Import the application
+            # 1. Import the required modules
             application_module = imp.load_source('%s' % build_name, '%s/top.py' % (application_path))
+            builder_module = imp.load_source('%s' % platform_module.TARGET_VENDOR, 'tools/%s.py' % (platform_module.TARGET_VENDOR))
             os.chdir(application_path)
 
             # 2. Find all application HDL source files
-            application_hdl = find_hdl_source_files("hdl", build_name)
+            application_hdl = tools.find_hdl_source_files("hdl", build_name)
 
             # 3. Setup build dir
-            ensure_dirs(['build', 'output'])
+            tools.ensure_dirs(['build', 'output'])
             os.system("rm -rf output/*")
             os.system("rm -rf build/*")
             os.chdir("build")
@@ -197,29 +92,31 @@ if __name__ == "__main__":
                 print("----[Verilog]------------")
                 print(generated_hdl_src)
             generated_hdl_file = "%s.v" % (build_name)
-            write_to_file(generated_hdl_file, generated_hdl_src)
+            tools.write_to_file(generated_hdl_file, generated_hdl_src)
             application_include_hdl = [{"type":"verilog", "path":"build/%s.v" % (build_name), "library":"%s" % (build_name)}]
 
             # 5. Include Library and application HDL files
             application_include_hdl.extend(application_hdl)
             application_include_hdl.extend(library_hdl)
 
-            write_to_file("%s.symtab" % (build_name), symtab_src)
+            tools.write_to_file("%s.symtab" % (build_name), symtab_src)
             if DEBUG:
                 print("----[Registers]----------")
                 print(symtab_src)
 
             # 6. Generate platform code
             ucf_src = platform_module.get_platform(namespace, signals)
-            write_to_file("%s.ucf" % (build_name), ucf_src)
+            tools.write_to_file("%s.ucf" % (build_name), ucf_src)
             if DEBUG:
                 print("----[Constraints]--------")
                 print(ucf_src)
                 print("-------------------------\r\n")
 
             # 6. Synthesize project
-            builder = XilinxBuilder(application_include_hdl, name=build_name)
-            builder.build()
+            bitstream = builder_module.build(platform_module.TARGET_DEVICE, application_include_hdl, build_name)
+
+            # 7. Create BOF file
+            tools.generate_bof(build_name)
 
             # 8. Move BOF file
             if os.path.exists('%s.bof' % (build_name)):

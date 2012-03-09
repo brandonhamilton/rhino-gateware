@@ -34,6 +34,12 @@ from migen.fhdl import verilog, autofragment
 from library.migen import *
 
 #-----------------------------------------------------------------------------#
+# Platform settings                                                           #
+#-----------------------------------------------------------------------------#
+TARGET_VENDOR = "xilinx"
+TARGET_DEVICE = "xc6slx150t-fgg676-3"
+
+#-----------------------------------------------------------------------------#
 # Libary component constraints for this platform                              #
 #-----------------------------------------------------------------------------#
 PLATFORM_CONSTRAINTS = {

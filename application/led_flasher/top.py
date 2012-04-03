@@ -31,7 +31,7 @@
 from migen.fhdl.structure import *
 from migen.fhdl import verilog, autofragment
 
-from library.migen import clkgen
+from library import clkgen
 import led
 
 #--------------------------------------------------------------------------------#
@@ -54,10 +54,10 @@ def get_application(app_name):
 
     # =============================== #
     # Generate the register defitions
-    register_defitions = ''
+    register_defitions = ""
     # Generate fragments from platform components
     frag = autofragment.from_local()
 
     # Generate HDL code
     verilog_source, verilog_namespace = verilog.convert(frag, { sys_reset }, name=app_name, rst_signal=sys_reset, clk_signal=clkgen_obj.sys_clk, return_ns=True)
-    return (verilog_source, verilog_namespace, register_defitions, frag.pads)
+    return (verilog_source, verilog_namespace, register_defitions, set())

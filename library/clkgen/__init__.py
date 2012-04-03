@@ -10,8 +10,9 @@
 #        http://www.rhinoplatform.org
 #  ========================================
 #
-#   Rhino platform - GPMC core
-#   Copyright (C) 2012 Brandon Hamilton
+#   Rhino platform - clkgen core
+#   Copyright (C) 2012 Alan Langman
+#   Copyrigth (C) 2012 Brandon Hamilton
 #
 #   This file is part of rhino-tools.
 #
@@ -28,15 +29,25 @@
 #   You should have received a copy of the GNU General Public License
 #   along with rhino-tools.  If not, see <http://www.gnu.org/licenses/>.
 
+
 from migen.fhdl.structure import *
+from migen.fhdl import verilog
 
-class GPMC:
-    def __init__(self, clk):
-        # Implement initialisation here
-        pass
-    
+class CLKGEN:
+    def __init__(self):
+        self.sys_clk = Signal()
+        self.sys_clk_n_i = Signal()
+        self.sys_clk_p_i = Signal()
+        self.inst = Instance("IBUFGDS",
+                            [("O",self.sys_clk)],
+                            [("I",self.sys_clk_p_i),("IB",self.sys_clk_n_i)],
+                            parameters = [
+                                    ("DIFF_TERM","FALSE"),
+                                    ("IOSTANDARD","DEFAULT"),
+                                    ("IBUF_DELAY_VALUE","0")], 
+                            clkport=None,
+                            rstport="",
+                            name="IBUFGDS_inst")
+
     def get_fragment(self):
-        # Return fragment with combinatoral and synchronous lists here
-        return Fragment()
-
-
+        return Fragment(instances=[self.inst])

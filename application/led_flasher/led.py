@@ -51,6 +51,4 @@ class LEDFlash:
                         ]
 
     def get_fragment(self):
-        return Fragment(sync=self.led_sync, pads={self.led_register})
-
-       
+        return Fragment(sync=self.led_sync)

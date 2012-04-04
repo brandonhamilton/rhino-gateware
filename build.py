@@ -33,12 +33,12 @@
 import os, sys, imp, subprocess
 
 import tools
+from tools import cmgr
 
 #-----------------------------------------------------------------------------#
 # Build Settings                                                              #
 #-----------------------------------------------------------------------------#
 platform = "rhino"  # Build platform
-DEBUG    = True     # Print generated code to stdout
 
 #-----------------------------------------------------------------------------#
 # Perform Build steps                                                         #
@@ -77,35 +77,27 @@ if __name__ == "__main__":
         # Import the required modules
         application_module = imp.load_source(build_name, os.path.join(application_dir, "top.py"))
         
-        # Generate sources with Migen
-        (generated_hdl_src, namespace, symtab_src, signals) = application_module.get_application(build_name)
-        if DEBUG:
-            print("----[Verilog]------------")
-            print(generated_hdl_src)
+        # Build application and generate sources
+        cm = cmgr.Manager(platform_module.PLATFORM_RESOURCES)
+        app = platform_module.BaseApp(cm, application_module.COMPONENTS)
+        generated_hdl_src, namespace, symtab_src = app.get_source()
+        
+        # Write sources to filesystem
         generated_hdl_file = os.path.join(build_dir, build_name + ".v")
         tools.write_to_file(generated_hdl_file, generated_hdl_src)
-        application_hdl = [{"type":"verilog", "path":os.path.join(application_dir, "build", generated_hdl_file)}]
-
         tools.write_to_file(os.path.join(build_dir, build_name + ".symtab"), symtab_src)
-        if DEBUG:
-            print("----[Registers]----------")
-            print(symtab_src)
 
-        # Generate platform code
-        ucf_src = platform_module.get_platform(namespace, signals)
-        tools.write_to_file(os.path.join(build_dir, build_name + ".ucf"), ucf_src)
-        if DEBUG:
-            print("----[Constraints]--------")
-            print(ucf_src)
-            print("-------------------------\r\n")
-
-        # Include library and application HDL files
+        # Build list of HDL sources
+        application_hdl = [{"type":"verilog", "path":os.path.join(application_dir, "build", generated_hdl_file)}]
         application_hdl += tools.find_hdl_source_files(os.path.join(application_dir, "hdl"))
         application_hdl += library_hdl
     
         # Synthesize project
         os.chdir(os.path.join(application_dir, "build"))
-        bitstream = builder_module.build(platform_module.TARGET_DEVICE, application_hdl, build_name)
+        bitstream = builder_module.build(platform_module.TARGET_DEVICE,
+            application_hdl,
+            namespace, cm.get_sig_constraints(),
+            build_name)
         os.chdir(orig_dir)
 
         # Create BOF file

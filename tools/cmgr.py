@@ -23,7 +23,7 @@ class Misc:
 class Subsignal:
     def __init__(self, name, *constraints):
         self.name = name
-        self.constraints = constraints
+        self.constraints = list(constraints)
 
 def _lookup(description, name, number):
     for resource in description:
@@ -46,7 +46,7 @@ def _resource_type(resource):
                 if isinstance(c, Pins):
                     assert(n_bits is None)
                     n_bits = len(c.identifiers)
-            t.append((e.name, BV(n_bits)))
+            t.append((element.name, BV(n_bits)))
     return t
 
 def _match(description, requests):

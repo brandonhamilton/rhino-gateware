@@ -38,8 +38,8 @@ module gpmc #(
 	input gpmc_we_n,
 	input gpmc_oe_n,
 	input gpmc_ale_n,
+	
 	output gpmc_wait,
-
 	input gpmc_csr_cs_n,
 	input gpmc_dma_cs_n,
 	output [s_from_count+s_to_count:0] gpmc_dmareq_n /* < unused MSB */

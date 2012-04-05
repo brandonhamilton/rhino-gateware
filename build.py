@@ -104,7 +104,7 @@ if __name__ == "__main__":
         r = subprocess.call(["mkbof",
             "-t", "5",
             "-s", os.path.join(build_dir, build_name + ".symtab"),
-            "-o", os.path.join(build_dir, build_name + ".bof"),
+            "-o", os.path.join(output_dir, build_name + ".bof"),
             os.path.join(build_dir, build_name + ".bin")])
         if r != 0:
             raise OSError("Subprocess failed")

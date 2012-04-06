@@ -33,7 +33,6 @@
 import os, sys, imp, subprocess
 
 import tools
-from tools import cmgr
 
 #-----------------------------------------------------------------------------#
 # Build Settings                                                              #
@@ -78,9 +77,8 @@ if __name__ == "__main__":
         application_module = imp.load_source(build_name, os.path.join(application_dir, "top.py"))
         
         # Build application and generate sources
-        cm = cmgr.Manager(platform_module.PLATFORM_RESOURCES)
-        app = platform_module.BaseApp(cm, application_module.COMPONENTS)
-        generated_hdl_src, namespace, symtab_src = app.get_source()
+        app = platform_module.BaseApp(application_module.COMPONENTS)
+        generated_hdl_src, namespace, sig_constraints, symtab_src = app.get_source()
         
         # Write sources to filesystem
         generated_hdl_file = os.path.join(build_dir, build_name + ".v")
@@ -96,7 +94,7 @@ if __name__ == "__main__":
         os.chdir(os.path.join(application_dir, "build"))
         bitstream = builder_module.build(platform_module.TARGET_DEVICE,
             application_hdl,
-            namespace, cm.get_sig_constraints(),
+            namespace, sig_constraints,
             build_name)
         os.chdir(orig_dir)
 

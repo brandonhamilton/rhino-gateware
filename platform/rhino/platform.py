@@ -1,12 +1,9 @@
 from migen.fhdl.structure import *
 from migen.fhdl import verilog
-from migen.bus import csr
-from migen.bank.description import *
-from migen.bank.csrgen import Bank
 
 from tools.cmgr import *
+from tools.mmgr import *
 from library.gpmc import *
-from library.uid import UID
 
 TARGET_VENDOR = "xilinx"
 TARGET_DEVICE = "xc6slx150t-fgg676-3"
@@ -48,9 +45,7 @@ PLATFORM_RESOURCES = [
 ]
 
 CSR_BASE = 0x08000000
-
-BOF_PERM_READ = 0x01
-BOF_PERM_WRITE = 0x02
+DMA_BASE = 0x10000000
 
 class CRG:
     def __init__(self, cm):
@@ -65,14 +60,12 @@ class CRG:
         return Fragment(instances=[self._inst])
 
 class BaseApp:
-    def __init__(self, cm, components):
-        self.cm = cm
+    def __init__(self, components):
+        self.constraints = ConstraintManager(PLATFORM_RESOURCES)
+        self.csrs = CSRManager()
+        self.streams = StreamManager(16)
         
-        self.csr_banks = []
-        self.streams_from = []
-        self.streams_to = []
-        
-        self.crg = CRG(cm)
+        self.crg = CRG(self.constraints)
         self.components_inst = []
         for c in components:
             if isinstance(c, tuple):
@@ -82,53 +75,26 @@ class BaseApp:
             self.components_inst.append(inst)
     
     def get_fragment(self):
-        s_count = len(self.streams_from) + len(self.streams_to)
-        dmareq_pins = [self.cm.request("gpmc_dmareq_n", i) for i in range(s_count)]
-        gpmc_bridge = GPMC(self.cm.request("gpmc"),
-            self.cm.request("gpmc_wait", 0),
-            self.cm.request("gpmc_ce_n", 0), self.cm.request("gpmc_ce_n", 1),
-            dmareq_pins, self.streams_from, self.streams_to)
+        streams_from = self.streams.get_ports(FROM_EXT)
+        streams_to = self.streams.get_ports(TO_EXT)
+        s_count = len(streams_from) + len(streams_to)
+        dmareq_pins = [self.constraints.request("gpmc_dmareq_n", i) for i in range(s_count)]
+        gpmc_bridge = GPMC(self.constraints.request("gpmc"),
+            self.constraints.request("gpmc_wait", 0),
+            self.constraints.request("gpmc_ce_n", 0),
+            self.constraints.request("gpmc_ce_n", 1),
+            dmareq_pins,
+            streams_from, streams_to)
+        self.csrs.master = gpmc_bridge.csr
         
-        comp_f = sum([c.get_fragment() for c in self.components_inst], Fragment())
-        
-        csr_f = Fragment()
-        csr_ifs = []
-        for address, (name, registers, uid_inst) in enumerate(self.csr_banks):
-            bank = Bank(registers, address)
-            csr_ifs.append(bank.interface)
-            csr_f += uid_inst.get_fragment() + bank.get_fragment()
-        csr_ic = csr.Interconnect(gpmc_bridge.csr, csr_ifs)
-        csr_f += csr_ic.get_fragment()
-        
-        return self.crg.get_fragment() + gpmc_bridge.get_fragment() + comp_f + csr_f
-        
-    def request_csr_bank(self, name, uid, *registers):
-        uid_inst = UID(uid)
-        all_registers = uid_inst.get_registers() + list(registers)
-        self.csr_banks.append((name, all_registers, uid_inst))
+        return self.csrs.get_fragment() + \
+            self.streams.get_fragment() + \
+            self.crg.get_fragment() + \
+            gpmc_bridge.get_fragment() + \
+            sum([c.get_fragment() for c in self.components_inst], Fragment())
     
     def get_symtab(self):
-        symtab = []
-        base = CSR_BASE
-        for name, registers, uid_inst in self.csr_banks:
-            for register in registers:
-                if isinstance(register, RegisterRaw):
-                    permission = BOF_PERM_READ|BOF_PERM_WRITE
-                else:
-                    permission = 0
-                    for f in register.fields:
-                        if (f.access_bus == READ_ONLY) or (f.access_bus == READ_WRITE):
-                            permission |= BOF_PERM_READ
-                        if (f.access_bus == WRITE_ONLY) or (f.access_bus == READ_WRITE):
-                            permission |= BOF_PERM_WRITE
-                if isinstance(register, RegisterRaw):
-                    nbits = register.size
-                else:
-                    nbits = sum([f.size for f in register.fields])
-                length = 2*((7 + nbits)//8)
-                symtab.append((name + "_" + register.name, permission, base, length))
-                base += length
-        return symtab
+        return self.csrs.get_symtab(CSR_BASE) + self.streams.get_symtab(DMA_BASE)
     
     def get_formatted_symtab(self):
         symtab = self.get_symtab()
@@ -141,7 +107,8 @@ class BaseApp:
         f = self.get_fragment()
         symtab = self.get_formatted_symtab()
         vsrc, ns = verilog.convert(f,
-            self.cm.get_io_signals(),
+            self.constraints.get_io_signals(),
             clk_signal=self.crg.sys_clk, rst_signal=self.crg.sys_rst,
             return_ns=True)
-        return vsrc, ns, symtab
+        sig_constraints = self.constraints.get_sig_constraints()
+        return vsrc, ns, sig_constraints, symtab

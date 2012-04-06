@@ -80,7 +80,7 @@ def _separate_pins(constraints):
             others.append(c)
     return pins, others
     
-class Manager:
+class ConstraintManager:
     def __init__(self, description):
         self.description = description
         self.requests = []

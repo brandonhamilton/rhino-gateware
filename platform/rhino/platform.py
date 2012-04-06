@@ -1,5 +1,6 @@
 from migen.fhdl.structure import *
 from migen.fhdl import verilog
+from migen.bus import csr
 
 from tools.cmgr import *
 from library.gpmc import *
@@ -43,6 +44,11 @@ PLATFORM_RESOURCES = [
     ("gpmc_dmareq_n", 3, Pins("V26"), IOStandard("LVCMOS33")), # nCS5
 ]
 
+CSR_BASE = 0x08000000
+
+BOF_PERM_READ = 0x01
+BOF_PERM_WRITE = 0x02
+
 class CRG:
     def __init__(self, cm):
         self.sys_clk = Signal()
@@ -59,10 +65,18 @@ class BaseApp:
     def __init__(self, cm, components):
         self.cm = cm
         
+        self.csrs = []
         self.streams_from = []
         self.streams_to = []
         
         self.crg = CRG(cm)
+        self.components_inst = []
+        for c in components:
+            if isinstance(c, tuple):
+                inst = c[0](self, **c[1])
+            else:
+                inst = c[0](self)
+            self.components_inst.append(inst)
     
     def get_fragment(self):
         s_count = len(self.streams_from) + len(self.streams_to)
@@ -71,10 +85,31 @@ class BaseApp:
             self.cm.request("gpmc_wait", 0),
             self.cm.request("gpmc_ce_n", 0), self.cm.request("gpmc_ce_n", 1),
             dmareq_pins, self.streams_from, self.streams_to)
-        return self.crg.get_fragment() + gpmc_bridge.get_fragment() 
+        
+        comp_f = sum([c.get_fragment() for c in self.components_inst], Fragment())
+        
+        csr_ic = csr.Interconnect(gpmc_bridge.csr, [c[1] for c in self.csrs])
+        
+        return self.crg.get_fragment() + gpmc_bridge.get_fragment() + comp_f + csr_ic.get_fragment()
+        
+    def request_csr(self, name):
+        address = len(self.csrs)
+        interface = csr.Interface()
+        self.csrs.append((name, interface))
+        return address, interface
+    
+    def get_symtab(self):
+        cr = 0x400
+        symtab = [(c[0], BOF_PERM_READ|BOF_PERM_WRITE, CSR_BASE + cr*i, cr)
+            for i, c in enumerate(self.csrs)]
+        return symtab
     
     def get_formatted_symtab(self):
-        return ""
+        symtab = self.get_symtab()
+        r = ""
+        for s in symtab:
+            r += "{}\t{}\t0x{:08x}\t0x{:x}\n".format(*s)
+        return r
     
     def get_source(self):
         f = self.get_fragment()

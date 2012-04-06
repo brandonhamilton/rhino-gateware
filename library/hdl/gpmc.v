@@ -60,6 +60,10 @@ always @(posedge gpmc_clk)
 /* synchronize address and write data to sys_clk domain */
 reg [13:0] csr_adr_0;
 reg [7:0] csr_dat_w_0;
+// synthesis attribute shreg_extract of csr_adr_0 is no
+// synthesis attribute shreg_extract of csr_adr is no
+// synthesis attribute shreg_extract of csr_dat_w_0 is no
+// synthesis attribute shreg_extract of csr_dat_w is no
 always @(posedge sys_clk) begin
 	csr_adr_0 <= gpmc_ar[13:0];
 	csr_dat_w_0 <= gpmc_d[7:0];
@@ -70,6 +74,8 @@ end
 /* synchronize read data to gpmc_clk domain */
 reg [7:0] csr_dat_r_gpmc_0;
 reg [7:0] csr_dat_r_gpmc;
+// synthesis attribute shreg_extract of csr_dat_r_gpmc_0 is no
+// synthesis attribute shreg_extract of csr_dat_r_gpmc is no
 always @(posedge gpmc_clk) begin
 	csr_dat_r_gpmc_0 <= csr_dat_r;
 	csr_dat_r_gpmc <= csr_dat_r_gpmc_0;

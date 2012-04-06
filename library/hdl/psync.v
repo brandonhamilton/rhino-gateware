@@ -13,6 +13,9 @@ always @(posedge clk1)
 reg level1;
 reg level2;
 reg level3;
+// synthesis attribute shreg_extract of level1 is no
+// synthesis attribute shreg_extract of level2 is no
+// synthesis attribute shreg_extract of level3 is no
 always @(posedge clk2) begin
 	level1 <= level;
 	level2 <= level1;

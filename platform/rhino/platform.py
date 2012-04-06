@@ -1,9 +1,12 @@
 from migen.fhdl.structure import *
 from migen.fhdl import verilog
 from migen.bus import csr
+from migen.bank.description import *
+from migen.bank.csrgen import Bank
 
 from tools.cmgr import *
 from library.gpmc import *
+from library.uid import UID
 
 TARGET_VENDOR = "xilinx"
 TARGET_DEVICE = "xc6slx150t-fgg676-3"
@@ -65,7 +68,7 @@ class BaseApp:
     def __init__(self, cm, components):
         self.cm = cm
         
-        self.csrs = []
+        self.csr_banks = []
         self.streams_from = []
         self.streams_to = []
         
@@ -88,20 +91,43 @@ class BaseApp:
         
         comp_f = sum([c.get_fragment() for c in self.components_inst], Fragment())
         
-        csr_ic = csr.Interconnect(gpmc_bridge.csr, [c[1] for c in self.csrs])
+        csr_f = Fragment()
+        csr_ifs = []
+        for address, (name, registers, uid_inst) in enumerate(self.csr_banks):
+            bank = Bank(registers, address)
+            csr_ifs.append(bank.interface)
+            csr_f += uid_inst.get_fragment() + bank.get_fragment()
+        csr_ic = csr.Interconnect(gpmc_bridge.csr, csr_ifs)
+        csr_f += csr_ic.get_fragment()
         
-        return self.crg.get_fragment() + gpmc_bridge.get_fragment() + comp_f + csr_ic.get_fragment()
+        return self.crg.get_fragment() + gpmc_bridge.get_fragment() + comp_f + csr_f
         
-    def request_csr(self, name):
-        address = len(self.csrs)
-        interface = csr.Interface()
-        self.csrs.append((name, interface))
-        return address, interface
+    def request_csr_bank(self, name, uid, *registers):
+        uid_inst = UID(uid)
+        all_registers = uid_inst.get_registers() + list(registers)
+        self.csr_banks.append((name, all_registers, uid_inst))
     
     def get_symtab(self):
-        cr = 0x400
-        symtab = [(c[0], BOF_PERM_READ|BOF_PERM_WRITE, CSR_BASE + cr*i, cr)
-            for i, c in enumerate(self.csrs)]
+        symtab = []
+        base = CSR_BASE
+        for name, registers, uid_inst in self.csr_banks:
+            for register in registers:
+                if isinstance(register, RegisterRaw):
+                    permission = BOF_PERM_READ|BOF_PERM_WRITE
+                else:
+                    permission = 0
+                    for f in register.fields:
+                        if (f.access_bus == READ_ONLY) or (f.access_bus == READ_WRITE):
+                            permission |= BOF_PERM_READ
+                        if (f.access_bus == WRITE_ONLY) or (f.access_bus == READ_WRITE):
+                            permission |= BOF_PERM_WRITE
+                if isinstance(register, RegisterRaw):
+                    nbits = register.size
+                else:
+                    nbits = sum([f.size for f in register.fields])
+                length = 2*((7 + nbits)//8)
+                symtab.append((name + "_" + register.name, permission, base, length))
+                base += length
         return symtab
     
     def get_formatted_symtab(self):

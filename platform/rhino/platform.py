@@ -46,6 +46,7 @@ PLATFORM_RESOURCES = [
 
 CSR_BASE = 0x08000000
 DMA_BASE = 0x10000000
+DMA_PORT_RANGE = 8192
 
 class CRG:
     def __init__(self, cm):
@@ -71,7 +72,7 @@ class BaseApp:
             if isinstance(c, tuple):
                 inst = c[0](self, **c[1])
             else:
-                inst = c[0](self)
+                inst = c(self)
             self.components_inst.append(inst)
     
     def get_fragment(self):
@@ -88,13 +89,13 @@ class BaseApp:
         self.csrs.master = gpmc_bridge.csr
         
         return self.csrs.get_fragment() + \
-            self.streams.get_fragment() + \
             self.crg.get_fragment() + \
             gpmc_bridge.get_fragment() + \
             sum([c.get_fragment() for c in self.components_inst], Fragment())
     
     def get_symtab(self):
-        return self.csrs.get_symtab(CSR_BASE) + self.streams.get_symtab(DMA_BASE)
+        return self.csrs.get_symtab(CSR_BASE) + \
+            self.streams.get_symtab(DMA_BASE, DMA_PORT_RANGE)
     
     def get_formatted_symtab(self):
         symtab = self.get_symtab()

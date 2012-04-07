@@ -31,6 +31,7 @@ class CSRManager:
     def get_symtab(self, base):
         symtab = []
         for name, registers, uid_inst in self.banks:
+            offset = 0
             for register in registers:
                 if isinstance(register, RegisterRaw):
                     permission = BOF_PERM_READ|BOF_PERM_WRITE
@@ -46,24 +47,40 @@ class CSRManager:
                 else:
                     nbits = sum([f.size for f in register.fields])
                 length = 2*((7 + nbits)//8)
-                symtab.append((name + "_" + register.name, permission, base, length))
-                base += length
+                symtab.append((name + "_" + register.name, permission, base + offset, length))
+                offset += length
+            base += 0x400
         return symtab
 
 (FROM_EXT, TO_EXT) = range(2)
+
+class StreamPort:
+    def __init__(self, data_width):
+        self.data = Signal(BV(data_width))
+        self.stb = Signal()
+        self.ack = Signal()
         
 class StreamManager:
     def __init__(self, data_width):
-        pass
+        self.data_width = data_width
+        self.streams = []
     
     def request(self, name, direction):
-        pass
+        port = StreamPort(self.data_width)
+        self.streams.append((name, direction, port))
+        return port
     
     def get_ports(self, direction):
-        return []
+        return [s[2] for s in self.streams if s[1] == direction]
     
-    def get_fragment(self):
-        return Fragment()
-    
-    def get_symtab(self, base):
-        return []
+    def get_symtab(self, base, port_range):
+        r = []
+        for name, direction, port in self.streams:
+            if direction == FROM_EXT:
+                r.append((name, BOF_PERM_WRITE, base, port_range))
+                base += port_range
+        for name, direction, port in self.streams:
+            if direction == TO_EXT:
+                r.append((name, BOF_PERM_READ, base, port_range))
+                base += port_range
+        return r

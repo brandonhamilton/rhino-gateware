@@ -77,6 +77,6 @@ class GPMC:
             ]
             
         if self._dmareq_pins:
-            comb.append(Cat(*self._dmareq_pins.eq(self._inst.outs["gpmc_dmareq_n"])))
+            comb.append(Cat(*self._dmareq_pins).eq(self._inst.outs["gpmc_dmareq_n"]))
         
         return Fragment(comb, instances=[self._inst])

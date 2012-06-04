@@ -39,7 +39,6 @@ module gpmc #(
 	input gpmc_oe_n,
 	input gpmc_ale_n,
 	
-	output gpmc_wait,
 	input gpmc_csr_cs_n,
 	input gpmc_dma_cs_n,
 	output [s_from_count+s_to_count:0] gpmc_dmareq_n /* < unused MSB */
@@ -81,43 +80,26 @@ always @(posedge gpmc_clk) begin
 	csr_dat_r_gpmc <= csr_dat_r_gpmc_0;
 end
 
-/* read pulse */
-wire csr_re_gpmc;
-wire csr_re;
-psync sync_csr_r(
-	.clk1(gpmc_clk),
-	.i(csr_re_gpmc),
-	.clk2(sys_clk),
-	.o(csr_re)
-);
-
-/* write pulse */
-wire csr_we_gpmc;
+/* synchronize write pulse */
+wire csr_wp_gpmc;
 psync sync_csr_we(
 	.clk1(gpmc_clk),
-	.i(csr_we_gpmc),
+	.i(csr_wp_gpmc),
 	.clk2(sys_clk),
 	.o(csr_we)
 );
 
-/* done loop */
-wire csr_done;
-psync sync_csr_done(
-	.clk1(sys_clk),
-	.i(csr_we|csr_re),
-	.clk2(gpmc_clk),
-	.o(csr_done)
-);
+/* generate write pulse */
+wire csr_we_gpmc;
+reg csr_we_gpmc_r;
 
-/* Control */
-reg csr_ongoing;
+assign csr_we_gpmc = ~gpmc_csr_cs_n & gpmc_ale_n & ~gpmc_we_n;
 always @(posedge gpmc_clk)
-	csr_ongoing <= ~gpmc_csr_cs_n & (~gpmc_oe_n | ~gpmc_we_n) & ~csr_done;
+	csr_we_gpmc_r <= csr_we_gpmc;
 
-assign csr_re_gpmc = ~gpmc_csr_cs_n & ~gpmc_oe_n & ~csr_ongoing;
-assign csr_we_gpmc = ~gpmc_csr_cs_n & ~gpmc_we_n & ~csr_ongoing;
+assign csr_wp_gpmc = csr_we_gpmc & ~csr_we_gpmc_r;
 
-assign gpmc_d = (~gpmc_csr_cs_n & ~gpmc_oe_n) ? csr_dat_r_gpmc : 16'hzzzz;
-assign gpmc_wait = ~csr_done;
+/* drive read data */
+assign gpmc_d = (~gpmc_csr_cs_n & ~gpmc_oe_n & gpmc_ale_n) ? csr_dat_r_gpmc : 16'hzzzz;
 
 endmodule

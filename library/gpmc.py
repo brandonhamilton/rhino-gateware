@@ -2,7 +2,7 @@ from migen.fhdl.structure import *
 from migen.bus import csr
 
 class GPMC:
-    def __init__(self, gpmc_pins, wait_pin, csr_cs_pin, dma_cs_pin, dmareq_pins, streams_from, streams_to):
+    def __init__(self, gpmc_pins, csr_cs_pin, dma_cs_pin, dmareq_pins, streams_from, streams_to):
         self._dmareq_pins = dmareq_pins
         self._streams_from = streams_from
         self._streams_to = streams_to
@@ -25,7 +25,6 @@ class GPMC:
                 
                 ("s_to_ack", BV(s_to_count)),
                 
-                ("gpmc_wait", wait_pin),
                 ("gpmc_dmareq_n", BV(s_count))
             ], [
                 ("csr_dat_r", self.csr.dat_r),

@@ -31,8 +31,6 @@ PLATFORM_RESOURCES = [
         Subsignal("oe_n", Pins("AA25")),
         Subsignal("ale_n", Pins("AA26")),
         IOStandard("LVCMOS33")),
-    ("gpmc_wait", 0, Pins("AD26"), IOStandard("LVCMOS33")),
-    ("gpmc_wait", 1, Pins("AB24"), IOStandard("LVCMOS33")),
     # Warning: CS are numbered 1-7 on ARM side and 0-6 on FPGA side.
     # Numbers here are given on the FPGA side.
     ("gpmc_ce_n", 0, Pins("V23"), IOStandard("LVCMOS33")), # nCS0
@@ -81,7 +79,6 @@ class BaseApp:
         s_count = len(streams_from) + len(streams_to)
         dmareq_pins = [self.constraints.request("gpmc_dmareq_n", i) for i in range(s_count)]
         gpmc_bridge = GPMC(self.constraints.request("gpmc"),
-            self.constraints.request("gpmc_wait", 0),
             self.constraints.request("gpmc_ce_n", 0),
             self.constraints.request("gpmc_ce_n", 1),
             dmareq_pins,

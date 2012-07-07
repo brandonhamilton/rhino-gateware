@@ -12,9 +12,9 @@ class WaveformGenerator(Actor):
 		self.depth = depth
 		self.width = width
 		
-		self._mode = RegisterField("mode")
+		self._mode = RegisterField("mode", 2)
 		self._busy = RegisterField("busy", access_bus=READ_ONLY, access_dev=WRITE_ONLY)
-		self._size = RegisterField("size", bits_for(self.depth))
+		self._size = RegisterField("size", bits_for(self.depth), reset=self.depth)
 		self._mult = RegisterField("mult", bits_for(self.depth), reset=1)
 		self._data_in = RegisterField("data_in", self.width)
 		self._shift_data = RegisterField("shift_data", access_bus=WRITE_ONLY)
@@ -37,7 +37,7 @@ class WaveformGenerator(Actor):
 			MemoryPort(mem_a, mem_dr, mem_we, mem_dw, re=mem_re))
 		
 		# address generator
-		v_mem_a = Signal(BV(bits_for(self.depth-1)), variable=True)
+		v_mem_a = Signal(BV(bits_for(self.depth-1)+1), variable=True)
 		adr_reset = Signal()
 		adr_inc_1 = Signal()
 		adr_inc_mult = Signal()
@@ -48,10 +48,10 @@ class WaveformGenerator(Actor):
 				v_mem_a.eq(mem_a + 1)
 			).Elif(adr_inc_mult,
 				v_mem_a.eq(mem_a + self._mult.field.r)
-			)
+			),
 			If(v_mem_a >= self._size.field.r,
 				v_mem_a.eq(v_mem_a - self._size.field.r)
-			)
+			),
 			mem_a.eq(v_mem_a)
 		]
 		
@@ -68,11 +68,11 @@ class WaveformGenerator(Actor):
 			self.busy.eq(0),
 			adr_reset.eq(1),
 			If(self._mode.field.r == MODE_LOAD, fsm.next_state(fsm.LOAD)),
-			If(self._mode.field.r == MODE_PLAYBACK, fsm.next_state(fsm.PLAYBACK))
+			If(self._mode.field.r == MODE_PLAYBACK, fsm.next_state(fsm.FLUSH))
 		)
 		fsm.act(fsm.LOAD,
 			self.busy.eq(0),
-			If(self._shift_data.field.re,
+			If(self._shift_data.re,
 				mem_we.eq(1),
 				adr_inc_1.eq(1)
 			),
@@ -81,6 +81,7 @@ class WaveformGenerator(Actor):
 		fsm.act(fsm.FLUSH,
 			self.busy.eq(1),
 			mem_re.eq(1),
+			adr_inc_mult.eq(1),
 			fsm.next_state(fsm.PLAYBACK)
 		)
 		fsm.act(fsm.PLAYBACK,
@@ -89,7 +90,7 @@ class WaveformGenerator(Actor):
 			If(self.endpoints["sample"].ack,
 				adr_inc_mult.eq(1),
 				mem_re.eq(1),
-				If(self._mode.field.r != MODE_LOAD, fsm.next_state(fsm.IDLE))
+				If(self._mode.field.r != MODE_PLAYBACK, fsm.next_state(fsm.IDLE))
 			)
 		)
 		

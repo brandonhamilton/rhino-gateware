@@ -1,6 +1,6 @@
 from migen.bus import csr
 from migen.bank.description import *
-from migen.bank.csrgen import Bank
+from migen.bank import csrgen
 
 from library.uid import UID
 
@@ -21,7 +21,7 @@ class CSRManager:
 		csr_f = Fragment()
 		csr_ifs = []
 		for address, (name, registers, uid_inst) in enumerate(self.banks):
-			bank = Bank(registers, address)
+			bank = csrgen.Bank(registers, address)
 			csr_ifs.append(bank.interface)
 			csr_f += uid_inst.get_fragment() + bank.get_fragment()
 		assert(self.master is not None)
@@ -46,7 +46,7 @@ class CSRManager:
 					nbits = register.size
 				else:
 					nbits = sum([f.size for f in register.fields])
-				length = 2*((7 + nbits)//8)
+				length = 2*((csr.data_width - 1 + nbits)//csr.data_width)
 				symtab.append((name + "_" + register.name, permission, base + offset, length))
 				offset += length
 			base += 0x400

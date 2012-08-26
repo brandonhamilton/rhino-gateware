@@ -12,6 +12,7 @@ class GPMC:
 		s_count = s_from_count + s_to_count
 		assert(len(dmareq_pins) == s_count)
 		
+		assert(csr.data_width == 16)
 		self.csr = csr.Interface()
 		
 		self._inst = Instance("gpmc",

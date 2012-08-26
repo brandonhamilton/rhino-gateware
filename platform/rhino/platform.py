@@ -5,6 +5,10 @@ from tools.cmgr import *
 from tools.mmgr import *
 from library.gpmc import *
 
+# set CSR data width to 16-bit
+from migen.bus import csr
+csr.data_width = 16
+
 TARGET_VENDOR = "xilinx"
 TARGET_DEVICE = "xc6slx150t-fgg676-3"
 

@@ -13,8 +13,8 @@ module gpmc #(
 	 */
 	output reg [13:0] csr_adr,
 	output csr_we,
-	input [7:0] csr_dat_r,
-	output reg [7:0] csr_dat_w,
+	input [15:0] csr_dat_r,
+	output reg [15:0] csr_dat_w,
 
 	/* Streams
 	 * NB: the unused MSB is here to avoid trouble when the
@@ -58,21 +58,21 @@ always @(posedge gpmc_clk)
 
 /* synchronize address and write data to sys_clk domain */
 reg [13:0] csr_adr_0;
-reg [7:0] csr_dat_w_0;
+reg [15:0] csr_dat_w_0;
 // synthesis attribute shreg_extract of csr_adr_0 is no
 // synthesis attribute shreg_extract of csr_adr is no
 // synthesis attribute shreg_extract of csr_dat_w_0 is no
 // synthesis attribute shreg_extract of csr_dat_w is no
 always @(posedge sys_clk) begin
 	csr_adr_0 <= gpmc_ar[13:0];
-	csr_dat_w_0 <= gpmc_d[7:0];
+	csr_dat_w_0 <= gpmc_d[15:0];
 	csr_adr <= csr_adr_0;
 	csr_dat_w <= csr_dat_w_0;
 end
 
 /* synchronize read data to gpmc_clk domain */
-reg [7:0] csr_dat_r_gpmc_0;
-reg [7:0] csr_dat_r_gpmc;
+reg [15:0] csr_dat_r_gpmc_0;
+reg [15:0] csr_dat_r_gpmc;
 // synthesis attribute shreg_extract of csr_dat_r_gpmc_0 is no
 // synthesis attribute shreg_extract of csr_dat_r_gpmc is no
 always @(posedge gpmc_clk) begin

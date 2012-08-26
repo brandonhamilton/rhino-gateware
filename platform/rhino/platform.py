@@ -64,7 +64,9 @@ PLATFORM_RESOURCES = [
 		Subsignal("mon_sdo", Pins("AC5")),
 		Subsignal("mon_en_n", Pins("AD6")),
 		Subsignal("mon_reset_n", Pins("AF6")),
-		Subsignal("mon_int_n", Pins("AD5"))
+		Subsignal("mon_int_n", Pins("AD5")),
+		
+		Subsignal("pg_c2m", Pins("AA23"))
 	),
 	("fmc150_dac", 0,
 		Subsignal("dat_p", Pins("AA10", "AA9", "V11", "Y11", "W14", "Y12", "AD14", "AE13")),

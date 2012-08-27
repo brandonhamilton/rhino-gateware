@@ -54,7 +54,7 @@ if __name__ == "__main__":
 
 	# Select applications to build
 	if len(sys.argv) > 1:
-		apps = list(set(sys.argv[1:]) & set(apps))
+		apps = sys.argv[1:]
 	else:
 		apps = [f for f in os.listdir("application") if os.path.isdir(os.path.join("application", f))]
 

@@ -5,6 +5,7 @@ MAGIC = 0xc2d5e717
 
 UID_LED_CONTROLLER = 1
 UID_DEMO_AFFINE = 2
+UID_FMC150_CTRL = 3
 
 class UID:
 	def __init__(self, uid):

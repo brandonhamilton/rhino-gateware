@@ -47,8 +47,8 @@ PLATFORM_RESOURCES = [
 	
 	# FMC150
 	("fmc150_ctrl", 0,
-		Subsignal("sclk", Pins("AE5")),
-		Subsignal("sdata", Pins("AF5")),
+		Subsignal("spi_sclk", Pins("AE5")),
+		Subsignal("spi_data", Pins("AF5")),
 		
 		Subsignal("adc_sdo", Pins("U13")),
 		Subsignal("adc_en_n", Pins("AA15")),
@@ -70,7 +70,7 @@ PLATFORM_RESOURCES = [
 		Subsignal("mon_reset_n", Pins("AF6")),
 		Subsignal("mon_int_n", Pins("AD5")),
 		
-		Subsignal("pg_c2m", Pins("AA23"))
+		Subsignal("pg_c2m", Pins("AA23"), IOStandard("LVCMOS33"))
 	),
 	("fmc150_dac", 0,
 		Subsignal("dat_p", Pins("AA10", "AA9", "V11", "Y11", "W14", "Y12", "AD14", "AE13")),

@@ -98,15 +98,21 @@ DMA_PORT_RANGE = 8192
 
 class CRG:
 	def __init__(self, cm):
-		self.sys_clk = Signal()
-		self.sys_rst = cm.request("gpio", 0)
-		self._inst = Instance("IBUFGDS",
-			[("O", self.sys_clk)],
-			[("I", cm.request("sys_clk_p")), ("IB", cm.request("sys_clk_n"))]
-		)
+		self.cd = ClockDomain("sys")
+		self._clk_p = cm.request("sys_clk_p")
+		self._clk_n = cm.request("sys_clk_n")
+		self._rst = cm.request("gpio", 0)
 
 	def get_fragment(self):
-		return Fragment(instances=[self._inst])
+		comb = [
+			self.cd.rst.eq(self._rst)
+		]
+		inst = Instance("IBUFGDS",
+			Instance.Input("I", self._clk_p),
+			Instance.Input("IB", self._clk_n),
+			Instance.Output("O", self.cd.clk)
+		)
+		return Fragment(comb, instances=[inst])
 
 class BaseApp:
 	def __init__(self, components):
@@ -156,7 +162,9 @@ class BaseApp:
 		symtab = self.get_formatted_symtab()
 		vsrc, ns = verilog.convert(f,
 			self.constraints.get_io_signals(),
-			clk_signal=self.crg.sys_clk, rst_signal=self.crg.sys_rst,
+			clock_domains = {
+				"sys": self.crg.cd
+			},
 			return_ns=True)
 		sig_constraints = self.constraints.get_sig_constraints()
 		return vsrc, ns, sig_constraints, symtab

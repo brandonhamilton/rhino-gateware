@@ -1,7 +1,4 @@
-module gpmc #(
-	parameter s_from_count = 0,
-	parameter s_to_count = 0
-) (
+module gpmc(
 	/*
 	 * System
 	 */
@@ -16,19 +13,6 @@ module gpmc #(
 	input [15:0] csr_dat_r,
 	output reg [15:0] csr_dat_w,
 
-	/* Streams
-	 * NB: the unused MSB is here to avoid trouble when the
-	 * number of ports is 0.
-	 */
-	/* from GPMC */
-	output [s_from_count:0] s_from_stb,
-	input [s_from_count:0] s_from_ack,
-	output [16*s_from_count:0] s_from_data,
-	/* to GPMC */
-	input [s_from_count:0] s_to_stb,
-	output [s_from_count:0] s_to_ack,
-	input [16*s_from_count:0] s_to_data,
-	
 	/*
 	 * GPMC
 	 */
@@ -39,9 +23,7 @@ module gpmc #(
 	input gpmc_oe_n,
 	input gpmc_ale_n,
 	
-	input gpmc_csr_cs_n,
-	input gpmc_dma_cs_n,
-	output [s_from_count+s_to_count:0] gpmc_dmareq_n /* < unused MSB */
+	input gpmc_csr_cs_n
 );
 
 /*

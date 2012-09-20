@@ -4,6 +4,7 @@ from migen.fhdl import verilog
 from tools.cmgr import *
 from tools.mmgr import *
 from library.gpmc import *
+from library.crg import *
 
 # set CSR data width to 16-bit
 from migen.bus import csr
@@ -22,8 +23,10 @@ PLATFORM_RESOURCES = [
 	("user_led", 6, Pins("U2")),
 	("user_led", 7, Pins("U1")),
 	
-	("sys_clk_p", 0, Pins("B14"), IOStandard("LVDS_25"), Misc("DIFF_TERM=TRUE")),
-	("sys_clk_n", 0, Pins("A14"), IOStandard("LVDS_25"), Misc("DIFF_TERM=TRUE")),
+	("clk100", 0,
+		Subsignal("p", Pins("B14"), IOStandard("LVDS_25"), Misc("DIFF_TERM=TRUE")),
+		Subsignal("n", Pins("A14"), IOStandard("LVDS_25"), Misc("DIFF_TERM=TRUE"))
+	),
 	
 	("gpio", 0, Pins("R8")),
 	
@@ -76,19 +79,22 @@ PLATFORM_RESOURCES = [
 		Subsignal("dat_p", Pins("AA10", "AA9", "V11", "Y11", "W14", "Y12", "AD14", "AE13")),
 		Subsignal("dat_n", Pins("AB11", "AB9", "V10", "AA11", "Y13", "AA12", "AF14", "AF13")),
 		Subsignal("frame_p", Pins("AB13")),
-		Subsignal("frame_n", Pins("AA13")),
-		Subsignal("clk_p", Pins("V12")),
-		Subsignal("clk_n", Pins("W12"))
+		Subsignal("frame_n", Pins("AA13"))
 	),
 	("fmc150_adc", 0,
 		Subsignal("dat_a_p", Pins("AB14", "Y21", "W20", "AB22", "V18", "W17", "AA21")),
 		Subsignal("dat_a_n", Pins("AC14", "AA22", "Y20", "AC22", "W19", "W18", "AB21")),
 		Subsignal("dat_b_p", Pins("Y17", "U15", "AA19", "W16", "AA18", "Y15", "V14")),
-		Subsignal("dat_b_n", Pins("AA17", "V16", "AB19", "Y16", "AB17", "AA16", "V15")),
-		Subsignal("clk_p", Pins("AE15")),
-		Subsignal("clk_n", Pins("AF15"))
+		Subsignal("dat_b_n", Pins("AA17", "V16", "AB19", "Y16", "AB17", "AA16", "V15"))
 	),
-	("fmc150_clk_to_fpga", 0, Pins("W24")),
+	("fmc150_clocks", 0,
+		Subsignal("dac_clk_p", Pins("V12")),
+		Subsignal("dac_clk_n", Pins("W12")),
+		Subsignal("adc_clk_p", Pins("AE15")),
+		Subsignal("adc_clk_n", Pins("AF15")),
+		Subsignal("clk_to_fpga", 0, Pins("W24"))
+	),
+	
 	("fmc150_ext_trigger", 0, Pins("U26")),
 ]
 
@@ -96,31 +102,13 @@ CSR_BASE = 0x08000000
 DMA_BASE = 0x10000000
 DMA_PORT_RANGE = 8192
 
-class CRG:
-	def __init__(self, cm):
-		self.cd = ClockDomain("sys")
-		self._clk_p = cm.request("sys_clk_p")
-		self._clk_n = cm.request("sys_clk_n")
-		self._rst = cm.request("gpio", 0)
-
-	def get_fragment(self):
-		comb = [
-			self.cd.rst.eq(self._rst)
-		]
-		inst = Instance("IBUFGDS",
-			Instance.Input("I", self._clk_p),
-			Instance.Input("IB", self._clk_n),
-			Instance.Output("O", self.cd.clk)
-		)
-		return Fragment(comb, instances=[inst])
-
 class BaseApp:
 	def __init__(self, components):
 		self.constraints = ConstraintManager(PLATFORM_RESOURCES)
 		self.csrs = CSRManager()
 		self.streams = StreamManager(16)
 		
-		self.crg = CRG(self.constraints)
+		self.crg = None
 		self.components_inst = []
 		for c in components:
 			if isinstance(c, tuple):
@@ -128,6 +116,13 @@ class BaseApp:
 			else:
 				inst = c(self)
 			self.components_inst.append(inst)
+			if isinstance(inst, CRG):
+				self.crg = inst
+
+		# default clock and reset generator
+		if self.crg is None:
+			self.crg = CRG100(self)
+			self.components_inst.append(self.crg)
 	
 	def get_fragment(self):
 		streams_from = self.streams.get_ports(FROM_EXT)
@@ -142,7 +137,6 @@ class BaseApp:
 		self.csrs.master = gpmc_bridge.csr
 		
 		return self.csrs.get_fragment() + \
-			self.crg.get_fragment() + \
 			gpmc_bridge.get_fragment() + \
 			sum([c.get_fragment() for c in self.components_inst], Fragment())
 	

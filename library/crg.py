@@ -23,6 +23,24 @@ class CRG100(CRG):
 	def get_clock_domains(self):
 		return {"sys": self.cd}
 
+class FMC150ClockForward:
+	def __init__(self, baseapp):
+		self._fmc_clocks = baseapp.constraints.request("fmc150_clocks")
+	
+	def get_fragment(self):
+		se = Signal()
+		ibufds = Instance("IBUFDS",
+			Instance.Input("I", self._fmc_clocks.adc_clk_p),
+			Instance.Input("IB", self._fmc_clocks.adc_clk_n),
+			Instance.Output("O", se)
+		)
+		obufds = Instance("OBUFDS",
+			Instance.Input("I", se),
+			Instance.Output("O", self._fmc_clocks.dac_clk_p),
+			Instance.Output("OB", self._fmc_clocks.dac_clk_n)
+		)
+		return Fragment(instances=[ibufds, obufds])
+
 # Clock generation for the FMC150
 # ADC samples at 122.88MHz
 #    I/O is DDR (using IDDR2)

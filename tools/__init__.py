@@ -31,7 +31,7 @@ def print_header():
 	print("     _____                               ")
 	print("    (, /   ) /)   ,                      ")
 	print("      /__ / (/     __   ___              ")
-	print("   ) /   \_ / )__(_/ (_(_)   Tools       ")
+	print("   ) /   \_ / )__(_/ (_(_)               ")
 	print("  (_/                                    ")
 	print("       Reconfigurable Hardware Interface ")
 	print("          for computatioN and radiO")

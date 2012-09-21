@@ -1,4 +1,7 @@
 from migen.fhdl.structure import *
+from migen.bank.description import *
+
+from library.uid import UID_FMC150_CRG
 
 class CRG:
 	pass
@@ -23,24 +26,6 @@ class CRG100(CRG):
 	def get_clock_domains(self):
 		return {"sys": self.cd}
 
-class FMC150ClockForward:
-	def __init__(self, baseapp):
-		self._fmc_clocks = baseapp.constraints.request("fmc150_clocks")
-	
-	def get_fragment(self):
-		se = Signal()
-		ibufds = Instance("IBUFDS",
-			Instance.Input("I", self._fmc_clocks.adc_clk_p),
-			Instance.Input("IB", self._fmc_clocks.adc_clk_n),
-			Instance.Output("O", se)
-		)
-		obufds = Instance("OBUFDS",
-			Instance.Input("I", se),
-			Instance.Output("O", self._fmc_clocks.dac_clk_p),
-			Instance.Output("OB", self._fmc_clocks.dac_clk_n)
-		)
-		return Fragment(instances=[ibufds, obufds])
-
 # Clock generation for the FMC150
 # ADC samples at 122.88MHz
 #    I/O is DDR (using IDDR2)
@@ -51,17 +36,31 @@ class FMC150ClockForward:
 #    => Generate 4x (for DAC clock pins)
 #       and 8x (for OSERDES) clocks
 class CRGFMC150(CRG):
-	def __init__(self, baseapp):
+	def __init__(self, baseapp, csr_name="crg"):
 		self.cd_sys = ClockDomain("sys")
 		self.cd_sys4x = ClockDomain("sys4x")
 		self.cd_io8x = ClockDomain("io8x")
 		self.io8x_strb = Signal()
 		
+		self._clk100 = baseapp.constraints.request("clk100")
 		self._fmc_clocks = baseapp.constraints.request("fmc150_clocks")
 		self._rst = baseapp.constraints.request("gpio", 0)
+		
+		self.reg_pll_enable = RegisterField("pll_enable", 1)
+		self.reg_pll_locked = RegisterField("pll_locked", 1, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
+		self.reg_clock_sel = RegisterField("clock_sel", 1)
+		baseapp.csrs.request(csr_name, UID_FMC150_CRG, self.reg_pll_enable, self.reg_pll_locked, self.reg_clock_sel)
 	
 	def get_fragment(self):
-		# receive differential clock
+		# receive differential 100MHz clock
+		post_ibufds100 = Signal()
+		ibufds100 = Instance("IBUFDS",
+			Instance.Input("I", self._clk100.p),
+			Instance.Input("IB", self._clk100.n),
+			Instance.Output("O", post_ibufds100)
+		)
+		
+		# receive differential ADC clock
 		post_ibufds = Signal()
 		ibufds = Instance("IBUFDS",
 			Instance.Input("I", self._fmc_clocks.adc_clk_p),
@@ -70,6 +69,7 @@ class CRGFMC150(CRG):
 		)
 		
 		# generate phase aligned clocks with PLL
+		pll_reset = Signal()
 		pll_locked = Signal()
 		pll_fb = Signal()
 		pll_out0 = Signal()
@@ -126,12 +126,15 @@ class CRGFMC150(CRG):
 			Instance.Input("CLKFBIN", pll_fb),
 			Instance.Output("CLKFBOUT", pll_fb),
 			
-			Instance.Input("RST")
+			Instance.Input("RST", pll_reset)
 		)
 		
 		# buffer 1x and 4x clocks
-		bufg_1x = Instance("BUFG",
-			Instance.Input("I", pll_out0),
+		# 1x clock can be replaced with 100MHz clock, used during system configuration
+		bufg_1x = Instance("BUFGMUX",
+			Instance.Input("S", self.reg_clock_sel.field.r),
+			Instance.Input("I0", post_ibufds100),
+			Instance.Input("I1", pll_out0),
 			Instance.Output("O", self.cd_sys.clk)
 		)
 		bufg_4x = Instance("BUFG",
@@ -169,21 +172,25 @@ class CRGFMC150(CRG):
 			Instance.Output("OB", self._fmc_clocks.dac_clk_n)
 		)
 		
-		# TODO: support expressions in instance ports
-		# TODO: support clock polarity in instance clock ports
 		comb = [
 			self.cd_sys.rst.eq(self._rst),
 			
+			# TODO: support expressions in instance ports
+			# TODO: support clock polarity in instance clock ports
 			oddr2_4x.get_io("C0").eq(self.cd_sys4x.clk),
 			oddr2_4x.get_io("C1").eq(~self.cd_sys4x.clk),
 			oddr2_4x.get_io("CE").eq(1),
 			oddr2_4x.get_io("D0").eq(1),
 			oddr2_4x.get_io("D1").eq(0),
 			oddr2_4x.get_io("R").eq(0),
-			oddr2_4x.get_io("S").eq(0)
+			oddr2_4x.get_io("S").eq(0),
+			
+			# glue CSRs
+			pll_reset.eq(~self.reg_pll_enable.field.r),
+			self.reg_pll_locked.field.w.eq(pll_locked)
 		]
 		
-		return Fragment(comb, instances=[ibufds, pll,
+		return Fragment(comb, instances=[ibufds100, ibufds, pll,
 			bufg_1x, bufg_4x, bufpll_8x,
 			oddr2_4x, obufds_4x])
 	

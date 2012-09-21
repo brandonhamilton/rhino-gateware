@@ -157,9 +157,7 @@ class BaseApp:
 		symtab = self.get_formatted_symtab()
 		vsrc, ns = verilog.convert(f,
 			self.constraints.get_io_signals(),
-			clock_domains = {
-				"sys": self.crg.cd
-			},
+			clock_domains=self.crg.get_clock_domains(),
 			return_ns=True)
 		sig_constraints = self.constraints.get_sig_constraints()
 		return vsrc, ns, sig_constraints, symtab

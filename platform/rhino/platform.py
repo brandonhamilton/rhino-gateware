@@ -66,7 +66,6 @@ PLATFORM_RESOURCES = [
 		
 		Subsignal("dac_sdo", Pins("W9")),
 		Subsignal("dac_en_n", Pins("W10")),
-		Subsignal("dac_txenable", Pins("AB15")),
 		
 		Subsignal("mon_sdo", Pins("AC5")),
 		Subsignal("mon_en_n", Pins("AD6")),
@@ -76,23 +75,25 @@ PLATFORM_RESOURCES = [
 		Subsignal("pg_c2m", Pins("AA23"), IOStandard("LVCMOS33"))
 	),
 	("fmc150_dac", 0,
-		Subsignal("dat_p", Pins("AA10", "AA9", "V11", "Y11", "W14", "Y12", "AD14", "AE13")),
-		Subsignal("dat_n", Pins("AB11", "AB9", "V10", "AA11", "Y13", "AA12", "AF14", "AF13")),
-		Subsignal("frame_p", Pins("AB13")),
-		Subsignal("frame_n", Pins("AA13"))
+		Subsignal("dat_p", Pins("AA10", "AA9", "V11", "Y11", "W14", "Y12", "AD14", "AE13"), IOStandard("LVDS_25"), Misc("DIFF_TERM=TRUE")),
+		Subsignal("dat_n", Pins("AB11", "AB9", "V10", "AA11", "Y13", "AA12", "AF14", "AF13"), IOStandard("LVDS_25"), Misc("DIFF_TERM=TRUE")),
+		Subsignal("frame_p", Pins("AB13"), IOStandard("LVDS_25"), Misc("DIFF_TERM=TRUE")),
+		Subsignal("frame_n", Pins("AA13"), IOStandard("LVDS_25"), Misc("DIFF_TERM=TRUE")),
+		Subsignal("txenable", Pins("AB15"), IOStandard("LVCMOS18"))
 	),
 	("fmc150_adc", 0,
 		Subsignal("dat_a_p", Pins("AB14", "Y21", "W20", "AB22", "V18", "W17", "AA21")),
 		Subsignal("dat_a_n", Pins("AC14", "AA22", "Y20", "AC22", "W19", "W18", "AB21")),
 		Subsignal("dat_b_p", Pins("Y17", "U15", "AA19", "W16", "AA18", "Y15", "V14")),
-		Subsignal("dat_b_n", Pins("AA17", "V16", "AB19", "Y16", "AB17", "AA16", "V15"))
+		Subsignal("dat_b_n", Pins("AA17", "V16", "AB19", "Y16", "AB17", "AA16", "V15")),
+		IOStandard("LVDS_25"), Misc("DIFF_TERM=TRUE")
 	),
 	("fmc150_clocks", 0,
-		Subsignal("dac_clk_p", Pins("V12")),
-		Subsignal("dac_clk_n", Pins("W12")),
-		Subsignal("adc_clk_p", Pins("AE15")),
-		Subsignal("adc_clk_n", Pins("AF15")),
-		Subsignal("clk_to_fpga", 0, Pins("W24"))
+		Subsignal("dac_clk_p", Pins("V12"), IOStandard("LVDS_25"), Misc("DIFF_TERM=TRUE")),
+		Subsignal("dac_clk_n", Pins("W12"), IOStandard("LVDS_25"), Misc("DIFF_TERM=TRUE")),
+		Subsignal("adc_clk_p", Pins("AE15"), IOStandard("LVDS_25"), Misc("DIFF_TERM=TRUE")),
+		Subsignal("adc_clk_n", Pins("AF15"), IOStandard("LVDS_25"), Misc("DIFF_TERM=TRUE")),
+		Subsignal("clk_to_fpga", Pins("W24"), IOStandard("LVCMOS25"))
 	),
 	
 	("fmc150_ext_trigger", 0, Pins("U26")),

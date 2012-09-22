@@ -158,13 +158,13 @@ class CRGFMC150(CRG):
 		oddr2_4x = Instance("ODDR2",
 			Instance.Parameter("DDR_ALIGNMENT", "NONE"),
 			Instance.Output("Q", post_oddr2),
-			Instance.Input("C0"),
-			Instance.Input("C1"),
-			Instance.Input("CE"),
-			Instance.Input("D0"),
-			Instance.Input("D1"),
-			Instance.Input("R"),
-			Instance.Input("S")
+			Instance.ClockPort("C0", "sys4x", invert=False),
+			Instance.ClockPort("C1", "sys4x", invert=True),
+			Instance.Input("CE", 1),
+			Instance.Input("D0", 1),
+			Instance.Input("D1", 0),
+			Instance.Input("R", 0),
+			Instance.Input("S", 0)
 		)
 		obufds_4x = Instance("OBUFDS",
 			Instance.Input("I", post_oddr2),
@@ -174,18 +174,6 @@ class CRGFMC150(CRG):
 		
 		comb = [
 			self.cd_sys.rst.eq(self._rst),
-			
-			# TODO: support expressions in instance ports
-			# TODO: support clock polarity in instance clock ports
-			oddr2_4x.get_io("C0").eq(self.cd_sys4x.clk),
-			oddr2_4x.get_io("C1").eq(~self.cd_sys4x.clk),
-			oddr2_4x.get_io("CE").eq(1),
-			oddr2_4x.get_io("D0").eq(1),
-			oddr2_4x.get_io("D1").eq(0),
-			oddr2_4x.get_io("R").eq(0),
-			oddr2_4x.get_io("S").eq(0),
-			
-			# glue CSRs
 			pll_reset.eq(~self.reg_pll_enable.field.r),
 			self.reg_pll_locked.field.w.eq(pll_locked)
 		]

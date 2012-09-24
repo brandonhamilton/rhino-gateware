@@ -94,14 +94,14 @@ class CRGFMC150(CRG):
 			Instance.Parameter("CLKOUT0_PHASE", 0.0),
 			Instance.Output("CLKOUT0", pll_out0),
 			
-			# 4x DAC clock
-			Instance.Parameter("CLKOUT1_DIVIDE", 2),
+			# 8x DAC SERDES clock
+			Instance.Parameter("CLKOUT1_DIVIDE", 1),
 			Instance.Parameter("CLKOUT1_DUTY_CYCLE", 0.5),
 			Instance.Parameter("CLKOUT1_PHASE", 0.0),
 			Instance.Output("CLKOUT1", pll_out1),
 			
-			# 8x DAC SERDES clock
-			Instance.Parameter("CLKOUT2_DIVIDE", 1),
+			# 4x DAC clock
+			Instance.Parameter("CLKOUT2_DIVIDE", 2),
 			Instance.Parameter("CLKOUT2_DUTY_CYCLE", 0.5),
 			Instance.Parameter("CLKOUT2_PHASE", 0.0),
 			Instance.Output("CLKOUT2", pll_out2),
@@ -138,14 +138,14 @@ class CRGFMC150(CRG):
 			Instance.Output("O", self.cd_sys.clk)
 		)
 		bufg_4x = Instance("BUFG",
-			Instance.Input("I", pll_out1),
+			Instance.Input("I", pll_out2),
 			Instance.Output("O", self.cd_sys4x.clk)
 		)
 		
 		# generate strobe and 8x I/O clock
 		bufpll_8x = Instance("BUFPLL",
 			Instance.Parameter("DIVIDE", 8),
-			Instance.Input("PLLIN", pll_out2),
+			Instance.Input("PLLIN", pll_out1),
 			Instance.ClockPort("GCLK"),
 			Instance.Input("LOCKED", pll_locked),
 			Instance.Output("IOCLK", self.cd_io8x.clk),

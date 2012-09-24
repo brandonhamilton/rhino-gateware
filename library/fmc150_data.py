@@ -124,3 +124,74 @@ class DAC(Actor):
 			self._pins.frame_p, self._pins.frame_n)
 		
 		return Fragment(comb, instances=inst)
+
+class ADC(Actor):
+	def __init__(self, pins):
+		self._pins = pins
+		
+		width = 2*len(self._pins.dat_a_p)
+		super().__init__(("samples", Source, [
+			("a", BV(width)),
+			("b", BV(width))
+		]))
+	
+	def get_fragment(self):
+		# push 1 token every cycle
+		# We need 1 token accepted at all cycles. TODO: error reporting
+		comb = [
+			self.endpoints["samples"].stb.eq(1)
+		]
+		
+		# receive data
+		dw = len(self._pins.dat_a_p)
+		token = self.token("samples")
+		inst = []
+		for i in range(dw):
+			single_ended_a = Signal()
+			single_ended_b = Signal()
+			inst += [
+				Instance("IBUFDS",
+					Instance.Input("I", self._pins.dat_a_p[i]),
+					Instance.Input("IB", self._pins.dat_a_n[i]),
+					Instance.Output("O", single_ended_a)
+				),
+				Instance("IBUFDS",
+					Instance.Input("I", self._pins.dat_b_p[i]),
+					Instance.Input("IB", self._pins.dat_b_n[i]),
+					Instance.Output("O", single_ended_b)
+				),
+				Instance("IDDR2",
+					Instance.Parameter("DDR_ALIGNMENT", "C0"),
+					Instance.Parameter("INIT_Q0", 0),
+					Instance.Parameter("INIT_Q1", 0),
+					Instance.Parameter("SRTYPE", "SYNC"),
+					
+					Instance.Input("D", single_ended_a),
+					Instance.Output("Q0", token.a[2*i]),
+					Instance.Output("Q1", token.a[2*i+1]),
+					
+					Instance.ClockPort("C0", invert=False),
+					Instance.ClockPort("C1", invert=True),
+					Instance.Input("CE", 1),
+					Instance.Input("R", 0),
+					Instance.Input("S", 0)
+				),
+				Instance("IDDR2",
+					Instance.Parameter("DDR_ALIGNMENT", "C0"),
+					Instance.Parameter("INIT_Q0", 0),
+					Instance.Parameter("INIT_Q1", 0),
+					Instance.Parameter("SRTYPE", "SYNC"),
+					
+					Instance.Input("D", single_ended_b),
+					Instance.Output("Q0", token.b[2*i]),
+					Instance.Output("Q1", token.b[2*i+1]),
+					
+					Instance.ClockPort("C0", invert=False),
+					Instance.ClockPort("C1", invert=True),
+					Instance.Input("CE", 1),
+					Instance.Input("R", 0),
+					Instance.Input("S", 0)
+				)
+			]
+		
+		return Fragment(comb, instances=inst)

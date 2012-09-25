@@ -101,6 +101,7 @@ class DAC(Actor):
 		self._test_pattern_q0 = RegisterField("test_pattern_q0", width, reset=0x55aa)
 		self._test_pattern_i1 = RegisterField("test_pattern_i1", width, reset=0x55aa)
 		self._test_pattern_q1 = RegisterField("test_pattern_q1", width, reset=0x55aa)
+		self._pulse_frame = RegisterRaw("pulse_frame", 1)
 		
 		super().__init__(("samples", Sink, [
 			("i0", BV(width)),
@@ -112,7 +113,8 @@ class DAC(Actor):
 	def get_registers(self):
 		return [self._test_pattern_en,
 			self._test_pattern_i0, self._test_pattern_q0,
-			self._test_pattern_i1, self._test_pattern_q1]
+			self._test_pattern_i1, self._test_pattern_q1,
+			self._pulse_frame]
 	
 	def get_fragment(self):
 		dw = len(self._pins.dat_p)
@@ -121,10 +123,12 @@ class DAC(Actor):
 		# mux test pattern, enable DAC, accept tokens
 		token = self.token("samples")
 		iotest = self._test_pattern_en.field.r
+		pulse_frame = self._pulse_frame.re
 		mi0 = Signal(BV(2*dw))
 		mq0 = Signal(BV(2*dw))
 		mi1 = Signal(BV(2*dw))
 		mq1 = Signal(BV(2*dw))
+		fr = Signal(BV(8))
 		comb = [
 			self.endpoints["samples"].ack.eq(~iotest),
 			If(iotest,
@@ -137,21 +141,26 @@ class DAC(Actor):
 				mq0.eq(self._test_pattern_q0.field.r),
 				mi1.eq(self._test_pattern_i1.field.r),
 				mq1.eq(self._test_pattern_q1.field.r)
+			),
+			If(iotest | self.endpoints["samples"].stb | pulse_frame,
+				fr.eq(0xf0)
+			).Else(
+				fr.eq(0x00)
 			)
 		]
 		sync = [
 			self._pins.txenable.eq(iotest | self.endpoints["samples"].stb)
 		]
 		
-		# transmit data
+		# transmit data and framing signal
 		for i in range(dw):
 			inst += _serialize_ds(self._serdesstrobe,
 				[mi0[dw+i], mi0[i], mq0[dw+i], mq0[i],
 				 mi1[dw+i], mi1[i], mq1[dw+i], mq1[i]],
 				self._pins.dat_p[i], self._pins.dat_n[i])
-		
-		# transmit framing signal
-		inst += _serialize_ds(self._serdesstrobe, [1, 1, 1, 1, 0, 0, 0, 0],
+		inst += _serialize_ds(self._serdesstrobe,
+			[fr[7], fr[6], fr[5], fr[4],
+			 fr[3], fr[2], fr[1], fr[0]],
 			self._pins.frame_p, self._pins.frame_n)
 		
 		return Fragment(comb, sync, instances=inst)

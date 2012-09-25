@@ -33,8 +33,8 @@ class CRG100(CRG):
 # DAC samples at 245.76MHz
 #    I/O is DDR (using OSERDES)
 #    Channels are multiplexed
-#    => Generate 4x (for DAC clock pins)
-#       and 8x (for OSERDES) clocks
+#    => Generate 4x (491.52MHz for DAC clock pins)
+#       and 8x (983.04MHz for OSERDES) clocks
 class CRGFMC150(CRG):
 	def __init__(self, baseapp, csr_name="crg"):
 		self.cd_sys = ClockDomain("sys")

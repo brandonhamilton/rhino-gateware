@@ -18,7 +18,8 @@ class FullWaveformGenerator(CompositeActor):
 		cast = ActorNode(Cast(wg.actor.token("sample").layout(),
 			dac.actor.token("samples").layout()))
 		
-		baseapp.csrs.request("wg", UID_WAVEFORM_GENERATOR, *wg.actor.get_registers())
+		registers = wg.actor.get_registers() + dac.actor.get_registers()
+		baseapp.csrs.request("wg", UID_WAVEFORM_GENERATOR, *registers)
 		
 		g = DataFlowGraph()
 		g.add_connection(wg, cast)

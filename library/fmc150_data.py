@@ -1,5 +1,6 @@
 from migen.fhdl.structure import *
 from migen.flow.actor import *
+from migen.bank.description import *
 
 def _serialize_ds(strobe, inputs, out_p, out_n):
 	cascade = Signal(BV(4))
@@ -94,6 +95,13 @@ class DAC(Actor):
 		self._serdesstrobe = serdesstrobe
 		
 		width = 2*len(self._pins.dat_p)
+		
+		self._test_pattern_en = RegisterField("test_pattern_en", 1)
+		self._test_pattern_i0 = RegisterField("test_pattern_i0", width, reset=0x55aa)
+		self._test_pattern_q0 = RegisterField("test_pattern_q0", width, reset=0x55aa)
+		self._test_pattern_i1 = RegisterField("test_pattern_i1", width, reset=0x55aa)
+		self._test_pattern_q1 = RegisterField("test_pattern_q1", width, reset=0x55aa)
+		
 		super().__init__(("samples", Sink, [
 			("i0", BV(width)),
 			("q0", BV(width)),
@@ -101,30 +109,52 @@ class DAC(Actor):
 			("q1", BV(width))
 		]))
 	
+	def get_registers(self):
+		return [self._test_pattern_en,
+			self._test_pattern_i0, self._test_pattern_q0,
+			self._test_pattern_i1, self._test_pattern_q1]
+	
 	def get_fragment(self):
 		dw = len(self._pins.dat_p)
 		inst = []
 		
-		# enable DAC, accept all tokens
-		# We need 1 token at all cycles. TODO: error reporting
+		# mux test pattern, enable DAC, accept tokens
+		token = self.token("samples")
+		iotest = self._test_pattern_en.field.r
+		mi0 = Signal(BV(2*dw))
+		mq0 = Signal(BV(2*dw))
+		mi1 = Signal(BV(2*dw))
+		mq1 = Signal(BV(2*dw))
 		comb = [
-			self._pins.txenable.eq(1),
-			self.endpoints["samples"].ack.eq(1)
+			self.endpoints["samples"].ack.eq(~iotest),
+			If(iotest,
+				mi0.eq(token.i0),
+				mq0.eq(token.q0),
+				mi1.eq(token.i1),
+				mq1.eq(token.q1)
+			).Else(
+				mi0.eq(self._test_pattern_i0.field.r),
+				mq0.eq(self._test_pattern_q0.field.r),
+				mi1.eq(self._test_pattern_i1.field.r),
+				mq1.eq(self._test_pattern_q1.field.r)
+			)
+		]
+		sync = [
+			self._pins.txenable.eq(iotest | self.endpoints["samples"].stb)
 		]
 		
 		# transmit data
-		token = self.token("samples")
 		for i in range(dw):
 			inst += _serialize_ds(self._serdesstrobe,
-				[token.i0[dw+i], token.i0[i], token.q0[dw+i], token.q0[i],
-				token.i1[dw+i], token.i1[i], token.q1[dw+i], token.q1[i]],
+				[mi0[dw+i], mi0[i], mq0[dw+i], mq0[i],
+				 mi1[dw+i], mi1[i], mq1[dw+i], mq1[i]],
 				self._pins.dat_p[i], self._pins.dat_n[i])
 		
 		# transmit framing signal
 		inst += _serialize_ds(self._serdesstrobe, [1, 1, 1, 1, 0, 0, 0, 0],
 			self._pins.frame_p, self._pins.frame_n)
 		
-		return Fragment(comb, instances=inst)
+		return Fragment(comb, sync, instances=inst)
 
 class ADC(Actor):
 	def __init__(self, pins):

@@ -29,14 +29,20 @@ def _format_ucf(signame, pin, others, resname):
 		fmt_r += "." + resname[2]
 	return "NET \"" + signame + "\" " + " | ".join(fmt_c) + "; # " + fmt_r + "\n"
 
-def _build_ucf(ns, constraints):
+def _build_ucf(ns, sig_constraints, platform_commands):
 	r = ""
-	for sig, pins, others, resname in constraints:
+	
+	for sig, pins, others, resname in sig_constraints:
 		if len(pins) > 1:
 			for i, p in enumerate(pins):
 				r += _format_ucf(ns.get_name(sig) + "(" + str(i) + ")", p, others, resname)
 		else:
 			r += _format_ucf(ns.get_name(sig), pins[0], others, resname)
+	
+	for template, args in platform_commands:
+		name_dict = dict((k, ns.get_name(sig)) for k, sig in args.items())
+		r += template.format(**name_dict)
+	
 	return r
 
 #-----------------------------------------------------------------------------#
@@ -50,9 +56,9 @@ def _build_ucf(ns, constraints):
 #   build_name: A string to be used as a prefix for all generated files       #   
 #   top: Top level HDL component (assumes same as build_name if not specified)#
 #-----------------------------------------------------------------------------#
-def build(device, sources, namespace, constraints, build_name):
+def build(device, sources, namespace, sig_constraints, platform_commands, build_name):
 	# Generate UCF
-	tools.write_to_file(build_name + ".ucf", _build_ucf(namespace, constraints))
+	tools.write_to_file(build_name + ".ucf", _build_ucf(namespace, sig_constraints, platform_commands))
 
 	# Generate project file
 	prj_contents = ""

@@ -84,6 +84,7 @@ class ConstraintManager:
 	def __init__(self, description):
 		self.description = description
 		self.requests = []
+		self.platform_commands = []
 		
 	def request(self, name, number=None, obj=None):
 		r = _lookup(self.description, name, number)
@@ -108,6 +109,9 @@ class ConstraintManager:
 		self.requests.append((name, number, obj))
 		
 		return obj
+	
+	def add_platform_command(self, command, **signals):
+		self.platform_commands.append((command, signals))
 	
 	def get_io_signals(self):
 		s = set()
@@ -145,3 +149,6 @@ class ConstraintManager:
 				pins, others = _separate_pins(top_constraints)
 				r.append((obj, pins, others, (name, number, None)))
 		return r
+
+	def get_platform_commands(self):
+		return self.platform_commands

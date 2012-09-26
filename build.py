@@ -48,7 +48,7 @@ if __name__ == "__main__":
 		
 		# Build application and generate sources
 		app = platform_module.BaseApp(application_module.COMPONENTS)
-		generated_hdl_src, namespace, sig_constraints, symtab_src = app.get_source()
+		generated_hdl_src, namespace, sig_constraints, platform_commands, symtab_src = app.get_source()
 		
 		# Write sources to filesystem
 		generated_hdl_file = os.path.join(build_dir, build_name + ".v")
@@ -64,7 +64,7 @@ if __name__ == "__main__":
 		os.chdir(os.path.join(application_dir, "build"))
 		bitstream = builder_module.build(platform_module.TARGET_DEVICE,
 			application_hdl,
-			namespace, sig_constraints,
+			namespace, sig_constraints, platform_commands,
 			build_name)
 		os.chdir(orig_dir)
 

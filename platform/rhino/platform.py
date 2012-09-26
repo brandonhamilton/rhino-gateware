@@ -160,4 +160,5 @@ class BaseApp:
 			clock_domains=self.crg.get_clock_domains(),
 			return_ns=True)
 		sig_constraints = self.constraints.get_sig_constraints()
-		return vsrc, ns, sig_constraints, symtab
+		platform_commands = self.constraints.get_platform_commands()
+		return vsrc, ns, sig_constraints, platform_commands, symtab

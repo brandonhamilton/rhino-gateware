@@ -46,6 +46,13 @@ class CRGFMC150(CRG):
 		self._fmc_clocks = baseapp.constraints.request("fmc150_clocks")
 		self._rst = baseapp.constraints.request("gpio", 0)
 		
+		baseapp.constraints.add_platform_command("""
+NET "{clk_100}" TNM_NET = "GRPclk_100";
+NET "{clk_adc}" TNM_NET = "GRPclk_adc";
+TIMESPEC "TSclk_100" = PERIOD "GRPclk_100" 10 ns HIGH 50%;
+TIMESPEC "TSclk_adc" = PERIOD "GRPclk_adc" 8.13 ns HIGH 50%;
+""", clk_100=self._clk100.p, clk_adc=self._fmc_clocks.adc_clk_p)
+		
 		self.reg_pll_enable = RegisterField("pll_enable", 1)
 		self.reg_pll_locked = RegisterField("pll_locked", 1, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
 		self.reg_clock_sel = RegisterField("clock_sel", 1)
@@ -86,7 +93,7 @@ class CRGFMC150(CRG):
 			Instance.Parameter("REF_JITTER", 0.100),
 			Instance.Parameter("CLK_FEEDBACK", "CLKFBOUT"),
 			
-			Instance.Parameter("CLKIN_PERIOD", 8.14),
+			Instance.Parameter("CLKIN_PERIOD", 8.13),
 			Instance.Input("CLKIN", post_ibufds),
 
 			# 1x system clock

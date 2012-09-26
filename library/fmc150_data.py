@@ -127,6 +127,7 @@ class DAC(Actor):
 		token = self.token("samples")
 		iotest = self._test_pattern_en.field.r
 		pulse_frame = self._pulse_frame.re
+		frame_div = Signal(BV(2))
 		mi0 = Signal(BV(2*dw))
 		mq0 = Signal(BV(2*dw))
 		mi1 = Signal(BV(2*dw))
@@ -145,14 +146,15 @@ class DAC(Actor):
 				mi1.eq(self._test_pattern_i1.field.r),
 				mq1.eq(self._test_pattern_q1.field.r)
 			),
-			If(iotest | self.endpoints["samples"].stb | pulse_frame,
+			If(pulse_frame | (frame_div[1] & (iotest | self.endpoints["samples"].stb)),
 				fr.eq(0xf0)
 			).Else(
 				fr.eq(0x00)
 			)
 		]
 		sync = [
-			self._pins.txenable.eq(iotest | self.endpoints["samples"].stb)
+			self._pins.txenable.eq(iotest | self.endpoints["samples"].stb),
+			frame_div.eq(frame_div + 1)
 		]
 		
 		# transmit data and framing signal

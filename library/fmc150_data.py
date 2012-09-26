@@ -146,7 +146,7 @@ class DAC(Actor):
 				mi1.eq(token.i1),
 				mq1.eq(token.q1)
 			),
-			If(pulse_frame | (frame_div[1] & (iotest | self.endpoints["samples"].stb)),
+			If(pulse_frame | ((frame_div == 0) & (iotest | self.endpoints["samples"].stb)),
 				fr.eq(0xf0)
 			).Else(
 				fr.eq(0x00)

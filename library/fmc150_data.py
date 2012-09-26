@@ -136,15 +136,15 @@ class DAC(Actor):
 		comb = [
 			self.endpoints["samples"].ack.eq(~iotest),
 			If(iotest,
-				mi0.eq(token.i0),
-				mq0.eq(token.q0),
-				mi1.eq(token.i1),
-				mq1.eq(token.q1)
-			).Else(
 				mi0.eq(self._test_pattern_i0.field.r),
 				mq0.eq(self._test_pattern_q0.field.r),
 				mi1.eq(self._test_pattern_i1.field.r),
 				mq1.eq(self._test_pattern_q1.field.r)
+			).Else(
+				mi0.eq(token.i0),
+				mq0.eq(token.q0),
+				mi1.eq(token.i1),
+				mq1.eq(token.q1)
 			),
 			If(pulse_frame | (frame_div[1] & (iotest | self.endpoints["samples"].stb)),
 				fr.eq(0xf0)

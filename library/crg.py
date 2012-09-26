@@ -11,6 +11,11 @@ class CRG100(CRG):
 		self.cd = ClockDomain("sys")
 		self._clk = baseapp.constraints.request("clk100")
 		self._rst = baseapp.constraints.request("gpio", 0)
+		
+		baseapp.constraints.add_platform_command("""
+NET "{clk_100}" TNM_NET = "GRPclk_100";
+TIMESPEC "TSclk_100" = PERIOD "GRPclk_100" 10 ns HIGH 50%;
+""", clk_100=self._clk.p)
 
 	def get_fragment(self):
 		comb = [

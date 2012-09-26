@@ -3,7 +3,10 @@ from migen.flow.actor import *
 from migen.bank.description import *
 
 def _serialize_ds(strobe, inputs, out_p, out_n):
-	cascade = Signal(BV(4))
+	cascade_m2s_d = Signal()
+	cascade_s2m_d = Signal()
+	cascade_m2s_t = Signal()
+	cascade_s2m_t = Signal()
 	single_ended = Signal()
 	return [
 		Instance("OSERDES2",
@@ -11,7 +14,7 @@ def _serialize_ds(strobe, inputs, out_p, out_n):
 			Instance.Parameter("DATA_RATE_OQ", "SDR"),
 			Instance.Parameter("DATA_RATE_OT", "SDR"),
 			Instance.Parameter("SERDES_MODE", "MASTER"),
-			Instance.Parameter("OUTPUT_MODE","DIFFERENTIAL"),
+			Instance.Parameter("OUTPUT_MODE", "SINGLE_ENDED"),
 			
 			Instance.Input("D4", inputs[7]),
 			Instance.Input("D3", inputs[6]),
@@ -33,14 +36,14 @@ def _serialize_ds(strobe, inputs, out_p, out_n):
 			Instance.Input("T4", 0),
 			Instance.Input("TRAIN", 0),
 			Instance.Input("TCE", 1),
-			Instance.Input("SHIFTIN1", 0),
-			Instance.Input("SHIFTIN2", 0),
-			Instance.Input("SHIFTIN3", 0),
-			Instance.Input("SHIFTIN4", 0),
-			Instance.Output("SHIFTOUT1", cascade[0]),
-			Instance.Output("SHIFTOUT2", cascade[1]),
-			Instance.Output("SHIFTOUT3", cascade[2]),
-			Instance.Output("SHIFTOUT4", cascade[3]),
+			Instance.Input("SHIFTIN1", 1),
+			Instance.Input("SHIFTIN2", 1),
+			Instance.Input("SHIFTIN3", cascade_s2m_d),
+			Instance.Input("SHIFTIN4", cascade_s2m_t),
+			Instance.Output("SHIFTOUT1", cascade_m2s_d),
+			Instance.Output("SHIFTOUT2", cascade_m2s_t),
+			Instance.Output("SHIFTOUT3"),
+			Instance.Output("SHIFTOUT4"),
 			
 			name="master"
 		),
@@ -49,7 +52,7 @@ def _serialize_ds(strobe, inputs, out_p, out_n):
 			Instance.Parameter("DATA_RATE_OQ", "SDR"),
 			Instance.Parameter("DATA_RATE_OT", "SDR"),
 			Instance.Parameter("SERDES_MODE", "SLAVE"),
-			Instance.Parameter("OUTPUT_MODE","DIFFERENTIAL"),
+			Instance.Parameter("OUTPUT_MODE", "SINGLE_ENDED"),
 		
 			Instance.Input("D4", inputs[3]),
 			Instance.Input("D3", inputs[2]),
@@ -71,14 +74,14 @@ def _serialize_ds(strobe, inputs, out_p, out_n):
 			Instance.Input("T4", 0),
 			Instance.Input("TRAIN", 0),
 			Instance.Input("TCE", 1),
-			Instance.Input("SHIFTIN1", cascade[0]),
-			Instance.Input("SHIFTIN2", cascade[1]),
-			Instance.Input("SHIFTIN3", cascade[2]),
-			Instance.Input("SHIFTIN4", cascade[3]),
+			Instance.Input("SHIFTIN1", cascade_m2s_d),
+			Instance.Input("SHIFTIN2", cascade_m2s_t),
+			Instance.Input("SHIFTIN3", 1),
+			Instance.Input("SHIFTIN4", 1),
 			Instance.Output("SHIFTOUT1"),
 			Instance.Output("SHIFTOUT2"),
-			Instance.Output("SHIFTOUT3"),
-			Instance.Output("SHIFTOUT4"),
+			Instance.Output("SHIFTOUT3", cascade_s2m_d),
+			Instance.Output("SHIFTOUT4", cascade_s2m_t),
 			
 			name="slave"
 		),

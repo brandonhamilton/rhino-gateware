@@ -71,7 +71,8 @@ class CRGFMC150(CRG):
 		# generate phase aligned clocks with PLL
 		pll_reset = Signal()
 		pll_locked = Signal()
-		pll_fb = Signal()
+		pll_fb1 = Signal()
+		pll_fb2 = Signal()
 		pll_out0 = Signal()
 		pll_out1 = Signal()
 		pll_out2 = Signal()
@@ -80,7 +81,7 @@ class CRGFMC150(CRG):
 			Instance.Parameter("CLKFBOUT_MULT", 8),
 			Instance.Parameter("CLKFBOUT_PHASE", 0.0),
 			
-			Instance.Parameter("COMPENSATION", "INTERNAL"),
+			Instance.Parameter("COMPENSATION", "SYSTEM_SYNCHRONOUS"),
 			Instance.Parameter("DIVCLK_DIVIDE", 1),
 			Instance.Parameter("REF_JITTER", 0.100),
 			Instance.Parameter("CLK_FEEDBACK", "CLKFBOUT"),
@@ -123,10 +124,14 @@ class CRGFMC150(CRG):
 			
 			Instance.Output("LOCKED", pll_locked),
 			
-			Instance.Input("CLKFBIN", pll_fb),
-			Instance.Output("CLKFBOUT", pll_fb),
+			Instance.Input("CLKFBIN", pll_fb1),
+			Instance.Output("CLKFBOUT", pll_fb2),
 			
 			Instance.Input("RST", pll_reset)
+		)
+		bufg_fb = Instance("BUFG",
+			Instance.Input("I", pll_fb2),
+			Instance.Output("O", pll_fb1)
 		)
 		
 		# buffer 1x and 4x clocks
@@ -178,7 +183,8 @@ class CRGFMC150(CRG):
 			self.reg_pll_locked.field.w.eq(pll_locked)
 		]
 		
-		return Fragment(comb, instances=[ibufds100, ibufds, pll,
+		return Fragment(comb, instances=[ibufds100, ibufds,
+			pll, bufg_fb,
 			bufg_1x, bufg_4x, bufpll_8x,
 			oddr2_4x, obufds_4x])
 	

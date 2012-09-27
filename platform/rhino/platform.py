@@ -75,10 +75,10 @@ PLATFORM_RESOURCES = [
 		Subsignal("pg_c2m", Pins("AA23"), IOStandard("LVCMOS33"))
 	),
 	("fmc150_dac", 0,
-		Subsignal("dat_p", Pins("AA10", "AA9", "V11", "Y11", "W14", "Y12", "AD14", "AE13"), IOStandard("LVDS_25"), Misc("DIFF_TERM=TRUE")),
-		Subsignal("dat_n", Pins("AB11", "AB9", "V10", "AA11", "Y13", "AA12", "AF14", "AF13"), IOStandard("LVDS_25"), Misc("DIFF_TERM=TRUE")),
-		Subsignal("frame_p", Pins("AB13"), IOStandard("LVDS_25"), Misc("DIFF_TERM=TRUE")),
-		Subsignal("frame_n", Pins("AA13"), IOStandard("LVDS_25"), Misc("DIFF_TERM=TRUE")),
+		Subsignal("dat_p", Pins("AA10", "AA9", "V11", "Y11", "W14", "Y12", "AD14", "AE13"), IOStandard("LVDS_25")),
+		Subsignal("dat_n", Pins("AB11", "AB9", "V10", "AA11", "Y13", "AA12", "AF14", "AF13"), IOStandard("LVDS_25")),
+		Subsignal("frame_p", Pins("AB13"), IOStandard("LVDS_25")),
+		Subsignal("frame_n", Pins("AA13"), IOStandard("LVDS_25")),
 		Subsignal("txenable", Pins("AB15"), IOStandard("LVCMOS25"))
 	),
 	("fmc150_adc", 0,
@@ -89,8 +89,8 @@ PLATFORM_RESOURCES = [
 		IOStandard("LVDS_25"), Misc("DIFF_TERM=TRUE")
 	),
 	("fmc150_clocks", 0,
-		Subsignal("dac_clk_p", Pins("V12"), IOStandard("LVDS_25"), Misc("DIFF_TERM=TRUE")),
-		Subsignal("dac_clk_n", Pins("W12"), IOStandard("LVDS_25"), Misc("DIFF_TERM=TRUE")),
+		Subsignal("dac_clk_p", Pins("V12"), IOStandard("LVDS_25")),
+		Subsignal("dac_clk_n", Pins("W12"), IOStandard("LVDS_25")),
 		Subsignal("adc_clk_p", Pins("AE15"), IOStandard("LVDS_25"), Misc("DIFF_TERM=TRUE")),
 		Subsignal("adc_clk_n", Pins("AF15"), IOStandard("LVDS_25"), Misc("DIFF_TERM=TRUE")),
 		Subsignal("clk_to_fpga", Pins("W24"), IOStandard("LVCMOS25"))

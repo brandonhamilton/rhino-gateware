@@ -116,7 +116,7 @@ TIMESPEC "TSclk_adc" = PERIOD "GRPclk_adc" 8.13 ns HIGH 50%;
 			# 4x DAC clock
 			Instance.Parameter("CLKOUT2_DIVIDE", 2),
 			Instance.Parameter("CLKOUT2_DUTY_CYCLE", 0.5),
-			Instance.Parameter("CLKOUT2_PHASE", 0.0),
+			Instance.Parameter("CLKOUT2_PHASE", -45.0),
 			Instance.Output("CLKOUT2", pll_out2),
 			
 			Instance.Parameter("CLKOUT3_DIVIDE", 8),

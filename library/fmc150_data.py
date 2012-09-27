@@ -2,7 +2,53 @@ from migen.fhdl.structure import *
 from migen.flow.actor import *
 from migen.bank.description import *
 
-def _serialize_ds(strobe, inputs, out_p, out_n):
+def _serialize4_ds(strobe, inputs, out_p, out_n):
+	single_ended = Signal()
+	return [
+		Instance("OSERDES2",
+			Instance.Parameter("DATA_WIDTH", 4),
+			Instance.Parameter("DATA_RATE_OQ", "SDR"),
+			Instance.Parameter("DATA_RATE_OT", "SDR"),
+			Instance.Parameter("SERDES_MODE", "NONE"),
+			Instance.Parameter("OUTPUT_MODE", "SINGLE_ENDED"),
+			
+			Instance.Input("D4", inputs[3]),
+			Instance.Input("D3", inputs[2]),
+			Instance.Input("D2", inputs[1]),
+			Instance.Input("D1", inputs[0]),
+			Instance.Output("OQ", single_ended),
+			
+			Instance.ClockPort("CLK0", "dacio"),
+			Instance.ClockPort("CLKDIV", "sys"),
+			Instance.Input("IOCE", strobe),
+			
+			Instance.Input("OCE", 1),
+			Instance.Input("CLK1", 0),
+			Instance.Input("RST", 0),
+			Instance.Output("TQ"),
+			Instance.Input("T1", 0),
+			Instance.Input("T2", 0),
+			Instance.Input("T3", 0),
+			Instance.Input("T4", 0),
+			Instance.Input("TRAIN", 0),
+			Instance.Input("TCE", 1),
+			Instance.Input("SHIFTIN1"),
+			Instance.Input("SHIFTIN2"),
+			Instance.Input("SHIFTIN3"),
+			Instance.Input("SHIFTIN4"),
+			Instance.Output("SHIFTOUT1"),
+			Instance.Output("SHIFTOUT2"),
+			Instance.Output("SHIFTOUT3"),
+			Instance.Output("SHIFTOUT4")
+		),
+		Instance("OBUFDS",
+			Instance.Input("I", single_ended),
+			Instance.Output("O", out_p),
+			Instance.Output("OB", out_n)
+		)
+	]
+
+def _serialize8_ds(strobe, inputs, out_p, out_n):
 	cascade_m2s_d = Signal()
 	cascade_s2m_d = Signal()
 	cascade_m2s_t = Signal()
@@ -22,7 +68,7 @@ def _serialize_ds(strobe, inputs, out_p, out_n):
 			Instance.Input("D1", inputs[4]),
 			Instance.Output("OQ", single_ended),
 			
-			Instance.ClockPort("CLK0", "io8x"),
+			Instance.ClockPort("CLK0", "dacio"),
 			Instance.ClockPort("CLKDIV", "sys"),
 			Instance.Input("IOCE", strobe),
 			
@@ -60,7 +106,7 @@ def _serialize_ds(strobe, inputs, out_p, out_n):
 			Instance.Input("D1", inputs[0]),
 			Instance.Output("OQ"),
 			
-			Instance.ClockPort("CLK0", "io8x"),
+			Instance.ClockPort("CLK0", "dacio"),
 			Instance.ClockPort("CLKDIV", "sys"),
 			Instance.Input("IOCE", strobe),
 			
@@ -92,8 +138,8 @@ def _serialize_ds(strobe, inputs, out_p, out_n):
 		)
 	]
 
-class DAC(Actor):
-	def __init__(self, pins, serdesstrobe):
+class _BaseDAC(Actor):
+	def __init__(self, pins, serdesstrobe, double):
 		self._pins = pins
 		self._serdesstrobe = serdesstrobe
 		
@@ -106,18 +152,82 @@ class DAC(Actor):
 		self._test_pattern_q1 = RegisterField("test_pattern_q1", width, reset=0x55aa)
 		self._pulse_frame = RegisterRaw("pulse_frame", 1)
 		
-		super().__init__(("samples", Sink, [
-			("i0", BV(width)),
-			("q0", BV(width)),
-			("i1", BV(width)),
-			("q1", BV(width))
-		]))
+		if double:
+			layout = [
+				("i0", BV(width)),
+				("q0", BV(width)),
+				("i1", BV(width)),
+				("q1", BV(width))
+			]
+		else:
+			layout = [
+				("i", BV(width)),
+				("q", BV(width))
+			]
+		
+		super().__init__(("samples", Sink, layout))
 	
 	def get_registers(self):
 		return [self._test_pattern_en,
 			self._test_pattern_i0, self._test_pattern_q0,
 			self._test_pattern_i1, self._test_pattern_q1,
 			self._pulse_frame]
+
+class DAC(_BaseDAC):
+	def __init__(self, pins, serdesstrobe):
+		super().__init__(pins, serdesstrobe, False)
+	
+	def get_fragment(self):
+		dw = len(self._pins.dat_p)
+		inst = []
+		
+		# mux test pattern, enable DAC, accept tokens
+		token = self.token("samples")
+		iotest = self._test_pattern_en.field.r
+		pulse_frame = self._pulse_frame.re
+		frame_div = Signal(BV(3))
+		mi = Signal(BV(2*dw))
+		mq = Signal(BV(2*dw))
+		fr = Signal(BV(4))
+		comb = [
+			self.endpoints["samples"].ack.eq(~iotest),
+			If(iotest,
+				If(frame_div[0],
+					mi.eq(self._test_pattern_i1.field.r),
+					mq.eq(self._test_pattern_q1.field.r)
+				).Else(
+					mi.eq(self._test_pattern_i0.field.r),
+					mq.eq(self._test_pattern_q0.field.r)
+				)
+			).Else(
+				mi.eq(token.i),
+				mq.eq(token.q)
+			),
+			If(pulse_frame | ((frame_div == 0) & (iotest | self.endpoints["samples"].stb)),
+				fr.eq(0xf)
+			).Else(
+				fr.eq(0x0)
+			)
+		]
+		sync = [
+			self._pins.txenable.eq(iotest | self.endpoints["samples"].stb),
+			frame_div.eq(frame_div + 1)
+		]
+		
+		# transmit data and framing signal
+		for i in range(dw):
+			inst += _serialize4_ds(self._serdesstrobe,
+				[mi[dw+i], mi[i], mq[dw+i], mq[i]],
+				self._pins.dat_p[i], self._pins.dat_n[i])
+		inst += _serialize4_ds(self._serdesstrobe,
+			[fr[3], fr[2], fr[1], fr[0]],
+			self._pins.frame_p, self._pins.frame_n)
+		
+		return Fragment(comb, sync, instances=inst)
+
+class DAC2X(_BaseDAC):
+	def __init__(self, pins, serdesstrobe):
+		super().__init__(pins, serdesstrobe, True)
 	
 	def get_fragment(self):
 		dw = len(self._pins.dat_p)
@@ -159,11 +269,11 @@ class DAC(Actor):
 		
 		# transmit data and framing signal
 		for i in range(dw):
-			inst += _serialize_ds(self._serdesstrobe,
+			inst += _serialize8_ds(self._serdesstrobe,
 				[mi0[dw+i], mi0[i], mq0[dw+i], mq0[i],
 				 mi1[dw+i], mi1[i], mq1[dw+i], mq1[i]],
 				self._pins.dat_p[i], self._pins.dat_n[i])
-		inst += _serialize_ds(self._serdesstrobe,
+		inst += _serialize8_ds(self._serdesstrobe,
 			[fr[7], fr[6], fr[5], fr[4],
 			 fr[3], fr[2], fr[1], fr[0]],
 			self._pins.frame_p, self._pins.frame_n)

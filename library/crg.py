@@ -35,17 +35,28 @@ TIMESPEC "TSclk_100" = PERIOD "GRPclk_100" 10 ns HIGH 50%;
 # ADC samples at 122.88MHz
 #    I/O is DDR (using IDDR2)
 #    => Used as 1x system clock
-# DAC samples at 245.76MHz
-#    I/O is DDR (using OSERDES)
-#    Channels are multiplexed
-#    => Generate 4x (491.52MHz for DAC clock pins)
-#       and 8x (983.04MHz for OSERDES) clocks
+#
+# When double_dac=False:
+#   DAC samples at 122.88MHz
+#      I/O is DDR (using OSERDES)
+#      Channels are multiplexed
+#      => Generate 2x (245.76MHz for DAC clock pins)
+#         and 4x (491.52MHz for OSERDES) clocks
+#
+# When double_dac=True:
+#   DAC samples at 245.76MHz
+#      I/O is DDR (using OSERDES)
+#      Channels are multiplexed
+#      => Generate 4x (491.52MHz for DAC clock pins)
+#         and 8x (983.04MHz for OSERDES) clocks
 class CRGFMC150(CRG):
-	def __init__(self, baseapp, csr_name="crg"):
+	def __init__(self, baseapp, csr_name="crg", double_dac=False):
+		self._double_dac = double_dac
+		
 		self.cd_sys = ClockDomain("sys")
-		self.cd_sys4x = ClockDomain("sys4x")
-		self.cd_io8x = ClockDomain("io8x")
-		self.io8x_strb = Signal()
+		self.cd_dac = ClockDomain("dac")
+		self.cd_dacio = ClockDomain("dacio")
+		self.dacio_strb = Signal()
 		
 		self._clk100 = baseapp.constraints.request("clk100")
 		self._fmc_clocks = baseapp.constraints.request("fmc150_clocks")
@@ -107,16 +118,16 @@ TIMESPEC "TSclk_adc" = PERIOD "GRPclk_adc" 8.13 ns HIGH 50%;
 			Instance.Parameter("CLKOUT0_PHASE", 0.0),
 			Instance.Output("CLKOUT0", pll_out0),
 			
-			# 8x DAC SERDES clock
-			Instance.Parameter("CLKOUT1_DIVIDE", 1),
+			# 4x (8x) DAC SERDES clock
+			Instance.Parameter("CLKOUT1_DIVIDE", 1 if self._double_dac else 2),
 			Instance.Parameter("CLKOUT1_DUTY_CYCLE", 0.5),
 			Instance.Parameter("CLKOUT1_PHASE", 0.0),
 			Instance.Output("CLKOUT1", pll_out1),
 			
-			# 4x DAC clock
-			Instance.Parameter("CLKOUT2_DIVIDE", 2),
+			# 2x (4x) DAC clock
+			Instance.Parameter("CLKOUT2_DIVIDE", 2 if self._double_dac else 4),
 			Instance.Parameter("CLKOUT2_DUTY_CYCLE", 0.5),
-			Instance.Parameter("CLKOUT2_PHASE", -45.0),
+			Instance.Parameter("CLKOUT2_PHASE", -45.0 if self._double_dac else 0.0),
 			Instance.Output("CLKOUT2", pll_out2),
 			
 			Instance.Parameter("CLKOUT3_DIVIDE", 8),
@@ -146,7 +157,7 @@ TIMESPEC "TSclk_adc" = PERIOD "GRPclk_adc" 8.13 ns HIGH 50%;
 			Instance.Output("O", pll_fb1)
 		)
 		
-		# buffer 1x and 4x clocks
+		# buffer 1x and DAC clocks
 		# 1x clock can be replaced with 100MHz clock, used during system configuration
 		bufg_1x = Instance("BUFGMUX",
 			Instance.Input("S", self.reg_clock_sel.field.r),
@@ -154,36 +165,36 @@ TIMESPEC "TSclk_adc" = PERIOD "GRPclk_adc" 8.13 ns HIGH 50%;
 			Instance.Input("I1", pll_out0),
 			Instance.Output("O", self.cd_sys.clk)
 		)
-		bufg_4x = Instance("BUFG",
+		bufg_dac = Instance("BUFG",
 			Instance.Input("I", pll_out2),
-			Instance.Output("O", self.cd_sys4x.clk)
+			Instance.Output("O", self.cd_dac.clk)
 		)
 		
-		# generate strobe and 8x I/O clock
-		bufpll_8x = Instance("BUFPLL",
-			Instance.Parameter("DIVIDE", 8),
+		# generate strobe and DAC I/O clock
+		bufpll_dacio = Instance("BUFPLL",
+			Instance.Parameter("DIVIDE", 8 if self._double_dac else 4),
 			Instance.Input("PLLIN", pll_out1),
 			Instance.ClockPort("GCLK"),
 			Instance.Input("LOCKED", pll_locked),
-			Instance.Output("IOCLK", self.cd_io8x.clk),
+			Instance.Output("IOCLK", self.cd_dacio.clk),
 			Instance.Output("LOCK"),
-			Instance.Output("SERDESSTROBE", self.io8x_strb)
+			Instance.Output("SERDESSTROBE", self.dacio_strb)
 		)
 		
-		# forward 4x clock to DAC
+		# forward clock to DAC
 		post_oddr2 = Signal()
-		oddr2_4x = Instance("ODDR2",
+		oddr2_dac = Instance("ODDR2",
 			Instance.Parameter("DDR_ALIGNMENT", "NONE"),
 			Instance.Output("Q", post_oddr2),
-			Instance.ClockPort("C0", "sys4x", invert=False),
-			Instance.ClockPort("C1", "sys4x", invert=True),
+			Instance.ClockPort("C0", "dac", invert=False),
+			Instance.ClockPort("C1", "dac", invert=True),
 			Instance.Input("CE", 1),
 			Instance.Input("D0", 1),
 			Instance.Input("D1", 0),
 			Instance.Input("R", 0),
 			Instance.Input("S", 0)
 		)
-		obufds_4x = Instance("OBUFDS",
+		obufds_dac = Instance("OBUFDS",
 			Instance.Input("I", post_oddr2),
 			Instance.Output("O", self._fmc_clocks.dac_clk_p),
 			Instance.Output("OB", self._fmc_clocks.dac_clk_n)
@@ -197,12 +208,12 @@ TIMESPEC "TSclk_adc" = PERIOD "GRPclk_adc" 8.13 ns HIGH 50%;
 		
 		return Fragment(comb, instances=[ibufds100, ibufds,
 			pll, bufg_fb,
-			bufg_1x, bufg_4x, bufpll_8x,
-			oddr2_4x, obufds_4x])
+			bufg_1x, bufg_dac, bufpll_dacio,
+			oddr2_dac, obufds_dac])
 	
 	def get_clock_domains(self):
 		return {
 			"sys":   self.cd_sys,
-			"sys4x": self.cd_sys4x,
-			"io8x":  self.cd_io8x
+			"dac":   self.cd_dac,
+			"dacio": self.cd_dacio
 		}

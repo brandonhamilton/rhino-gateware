@@ -13,8 +13,8 @@ class FullWaveformGenerator(CompositeActor):
 		dac_pins = baseapp.constraints.request("fmc150_dac")
 		width = 2*len(dac_pins.dat_p)
 		
-		wg = ActorNode(WaveformGenerator(1024, 4*width))
-		dac = ActorNode(DAC(dac_pins, baseapp.crg.io8x_strb))
+		wg = ActorNode(WaveformGenerator(1024, 2*width))
+		dac = ActorNode(DAC(dac_pins, baseapp.crg.dacio_strb))
 		cast = ActorNode(Cast(wg.actor.token("sample").layout(),
 			dac.actor.token("samples").layout()))
 		

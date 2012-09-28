@@ -10,7 +10,6 @@ class CRG100(CRG):
 	def __init__(self, baseapp):
 		self.cd = ClockDomain("sys")
 		self._clk = baseapp.constraints.request("clk100")
-		self._rst = baseapp.constraints.request("gpio", 0)
 		
 		baseapp.constraints.add_platform_command("""
 NET "{clk_100}" TNM_NET = "GRPclk_100";
@@ -18,15 +17,23 @@ TIMESPEC "TSclk_100" = PERIOD "GRPclk_100" 10 ns HIGH 50%;
 """, clk_100=self._clk.p)
 
 	def get_fragment(self):
-		comb = [
-			self.cd.rst.eq(self._rst)
-		]
-		inst = Instance("IBUFGDS",
+		ibufg = Instance("IBUFGDS",
 			Instance.Input("I", self._clk.p),
 			Instance.Input("IB", self._clk.n),
 			Instance.Output("O", self.cd.clk)
 		)
-		return Fragment(comb, instances=[inst])
+		reset_srl = Instance("SRL16E",
+			Instance.Parameter("INIT", 0xffff),
+			Instance.ClockPort("CLK"),
+			Instance.Input("CE", 1),
+			Instance.Input("D", 0),
+			Instance.Input("A0", 1),
+			Instance.Input("A1", 1),
+			Instance.Input("A2", 1),
+			Instance.Input("A3", 1),
+			Instance.Output("Q", self.cd.rst)
+		)
+		return Fragment(instances=[ibufg, reset_srl])
 
 	def get_clock_domains(self):
 		return {"sys": self.cd}
@@ -60,8 +67,7 @@ class CRGFMC150(CRG):
 		
 		self._clk100 = baseapp.constraints.request("clk100")
 		self._fmc_clocks = baseapp.constraints.request("fmc150_clocks")
-		self._rst = baseapp.constraints.request("gpio", 0)
-		
+
 		baseapp.constraints.add_platform_command("""
 NET "{clk_100}" TNM_NET = "GRPclk_100";
 NET "{clk_adc}" TNM_NET = "GRPclk_adc";
@@ -200,8 +206,19 @@ TIMESPEC "TSclk_adc" = PERIOD "GRPclk_adc" 8.13 ns HIGH 50%;
 			Instance.Output("OB", self._fmc_clocks.dac_clk_n)
 		)
 		
+		reset_srl = Instance("SRL16E",
+			Instance.Parameter("INIT", 0xffff),
+			Instance.ClockPort("CLK"),
+			Instance.Input("CE", 1),
+			Instance.Input("D", 0),
+			Instance.Input("A0", 1),
+			Instance.Input("A1", 1),
+			Instance.Input("A2", 1),
+			Instance.Input("A3", 1),
+			Instance.Output("Q", self.cd_sys.rst)
+		)
+		
 		comb = [
-			self.cd_sys.rst.eq(self._rst),
 			pll_reset.eq(~self.reg_pll_enable.field.r),
 			self.reg_pll_locked.field.w.eq(pll_locked)
 		]
@@ -209,7 +226,8 @@ TIMESPEC "TSclk_adc" = PERIOD "GRPclk_adc" 8.13 ns HIGH 50%;
 		return Fragment(comb, instances=[ibufds100, ibufds,
 			pll, bufg_fb,
 			bufg_1x, bufg_dac, bufpll_dacio,
-			oddr2_dac, obufds_dac])
+			oddr2_dac, obufds_dac,
+			reset_srl])
 	
 	def get_clock_domains(self):
 		return {

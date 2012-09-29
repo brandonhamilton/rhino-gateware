@@ -75,10 +75,9 @@ TIMESPEC "TSclk_100" = PERIOD "GRPclk_100" 10 ns HIGH 50%;
 TIMESPEC "TSclk_adc" = PERIOD "GRPclk_adc" 8.13 ns HIGH 50%;
 """, clk_100=self._clk100.p, clk_adc=self._fmc_clocks.adc_clk_p)
 		
-		self.reg_pll_enable = RegisterField("pll_enable", 1)
-		self.reg_pll_locked = RegisterField("pll_locked", 1, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
-		self.reg_clock_sel = RegisterField("clock_sel", 1)
-		baseapp.csrs.request(csr_name, UID_FMC150_CRG, self.reg_pll_enable, self.reg_pll_locked, self.reg_clock_sel)
+		self.reg_clock_sel_req = RegisterField("clock_sel_req", 1)
+		self.reg_clock_sel_stat = RegisterField("clock_sel_stat", 1, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
+		baseapp.csrs.request(csr_name, UID_FMC150_CRG, self.reg_clock_sel_req, self.reg_clock_sel_stat)
 	
 	def get_fragment(self):
 		# receive differential 100MHz clock
@@ -165,8 +164,9 @@ TIMESPEC "TSclk_adc" = PERIOD "GRPclk_adc" 8.13 ns HIGH 50%;
 		
 		# buffer 1x and DAC clocks
 		# 1x clock can be replaced with 100MHz clock, used during system configuration
+		clock_switch = Signal()
 		bufg_1x = Instance("BUFGMUX",
-			Instance.Input("S", self.reg_clock_sel.field.r),
+			Instance.Input("S", clock_switch),
 			Instance.Input("I0", post_ibufds100),
 			Instance.Input("I1", pll_out0),
 			Instance.Output("O", self.cd_sys.clk)
@@ -219,8 +219,9 @@ TIMESPEC "TSclk_adc" = PERIOD "GRPclk_adc" 8.13 ns HIGH 50%;
 		)
 		
 		comb = [
-			pll_reset.eq(~self.reg_pll_enable.field.r),
-			self.reg_pll_locked.field.w.eq(pll_locked)
+			clock_switch.eq(self.reg_clock_sel_req.field.r & pll_locked),
+			pll_reset.eq(~self.reg_clock_sel_req.field.r),
+			self.reg_clock_sel_stat.field.w.eq(clock_switch)
 		]
 		
 		return Fragment(comb, instances=[ibufds100, ibufds,

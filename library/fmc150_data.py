@@ -204,20 +204,22 @@ class DAC(_BaseDAC):
 				mq.eq(token.q)
 			),
 			If(pulse_frame | ((frame_div == 0) & (iotest | self.endpoints["samples"].stb)),
-				fr.eq(0xf)
+				fr.eq(0x6)
 			).Else(
 				fr.eq(0x0)
 			)
 		]
+		mq_d = Signal(BV(2*dw))
 		sync = [
 			self._pins.txenable.eq(iotest | self.endpoints["samples"].stb),
-			frame_div.eq(frame_div + 1)
+			frame_div.eq(frame_div + 1),
+			mq_d.eq(mq)
 		]
 		
 		# transmit data and framing signal
 		for i in range(dw):
 			inst += _serialize4_ds(self._serdesstrobe,
-				[mi[dw+i], mi[i], mq[dw+i], mq[i]],
+				[mq_d[i], mi[dw+i], mi[i], mq[dw+i]],
 				self._pins.dat_p[i], self._pins.dat_n[i])
 		inst += _serialize4_ds(self._serdesstrobe,
 			[fr[3], fr[2], fr[1], fr[0]],
@@ -257,21 +259,23 @@ class DAC2X(_BaseDAC):
 				mq1.eq(token.q1)
 			),
 			If(pulse_frame | ((frame_div == 0) & (iotest | self.endpoints["samples"].stb)),
-				fr.eq(0xf0)
+				fr.eq(0x60)
 			).Else(
 				fr.eq(0x00)
 			)
 		]
+		mq1_d = Signal(BV(2*dw))
 		sync = [
 			self._pins.txenable.eq(iotest | self.endpoints["samples"].stb),
-			frame_div.eq(frame_div + 1)
+			frame_div.eq(frame_div + 1),
+			mq1_d.eq(mq1)
 		]
 		
 		# transmit data and framing signal
 		for i in range(dw):
 			inst += _serialize8_ds(self._serdesstrobe,
-				[mi0[dw+i], mi0[i], mq0[dw+i], mq0[i],
-				 mi1[dw+i], mi1[i], mq1[dw+i], mq1[i]],
+				[mq1_d[i], mi0[dw+i], mi0[i], mq0[dw+i],
+				 mq0[i], mi1[dw+i], mi1[i], mq1[dw+i]],
 				self._pins.dat_p[i], self._pins.dat_n[i])
 		inst += _serialize8_ds(self._serdesstrobe,
 			[fr[7], fr[6], fr[5], fr[4],

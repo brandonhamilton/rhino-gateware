@@ -57,7 +57,7 @@ TIMESPEC "TSclk_100" = PERIOD "GRPclk_100" 10 ns HIGH 50%;
 #      => Generate 4x (491.52MHz for DAC clock pins)
 #         and 8x (983.04MHz for OSERDES) clocks
 class CRGFMC150(CRG):
-	def __init__(self, baseapp, csr_name="crg", double_dac=False):
+	def __init__(self, baseapp, csr_name="crg", double_dac=True):
 		self._double_dac = double_dac
 		
 		self.cd_sys = ClockDomain("sys")

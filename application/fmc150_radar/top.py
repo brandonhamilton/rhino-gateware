@@ -27,7 +27,7 @@ class FullWaveformGenerator(CompositeActor):
 		super().__init__(g)
 
 COMPONENTS = [
-	(CRGFMC150, {"double_dac": True}),
+	CRGFMC150,
 	LedBlinker,
 	(LedController, {"count": 4}),
 	FMC150Controller,

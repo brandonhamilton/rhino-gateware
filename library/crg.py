@@ -165,10 +165,15 @@ TIMESPEC "TSclk_adc" = PERIOD "GRPclk_adc" 8.13 ns HIGH 50%;
 		
 		# buffer 1x and DAC clocks
 		# 1x clock can be replaced with 100MHz clock, used during system configuration
+		pll_out0G = Signal()
+		bufg_pll0 = Instance("BUFG",
+			Instance.Input("I", pll_out0),
+			Instance.Output("O", pll_out0G)
+		)
 		bufg_1x = Instance("BUFGMUX",
 			Instance.Input("S", self.reg_clock_sel.field.r),
 			Instance.Input("I0", post_ibufds100),
-			Instance.Input("I1", pll_out0),
+			Instance.Input("I1", pll_out0G),
 			Instance.Output("O", self.cd_sys.clk)
 		)
 		bufg_dac = Instance("BUFG",
@@ -180,7 +185,7 @@ TIMESPEC "TSclk_adc" = PERIOD "GRPclk_adc" 8.13 ns HIGH 50%;
 		bufpll_dacio = Instance("BUFPLL",
 			Instance.Parameter("DIVIDE", 8 if self._double_dac else 4),
 			Instance.Input("PLLIN", pll_out1),
-			Instance.ClockPort("GCLK"),
+			Instance.Input("GCLK", pll_out0G),
 			Instance.Input("LOCKED", pll_locked),
 			Instance.Output("IOCLK", self.cd_dacio.clk),
 			Instance.Output("LOCK"),
@@ -224,7 +229,7 @@ TIMESPEC "TSclk_adc" = PERIOD "GRPclk_adc" 8.13 ns HIGH 50%;
 		]
 		
 		return Fragment(comb, instances=[ibufds100, ibufds,
-			pll, bufg_fb,
+			pll, bufg_fb, bufg_pll0,
 			bufg_1x, bufg_dac, bufpll_dacio,
 			oddr2_dac, obufds_dac,
 			reset_srl])

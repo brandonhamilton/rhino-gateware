@@ -1,12 +1,14 @@
 from migen.flow.network import *
+from migen.flow.plumbing import Buffer
 from migen.actorlib.structuring import Cast
+from migen.actorlib.spi import Collector
 
-from library.uid import UID_WAVEFORM_GENERATOR
+from library.uid import UID_WAVEFORM_GENERATOR, UID_WAVEFORM_COLLECTOR
 from library.crg import CRGFMC150
 from library.led_controller import LedBlinker, LedController
 from library.fmc150_controller import FMC150Controller
 from library.waveform_generator import WaveformGenerator
-from library.fmc150_data import DAC2X
+from library.fmc150_data import DAC, DAC2X, ADC
 
 class FullWaveformGenerator(CompositeActor):
 	def __init__(self, baseapp):
@@ -26,10 +28,27 @@ class FullWaveformGenerator(CompositeActor):
 		g.add_connection(cast, dac)
 		super().__init__(g)
 
+class FullWaveformCollector(CompositeActor):
+	def __init__(self, baseapp):
+		adc_pins = baseapp.constraints.request("fmc150_adc")
+		width = 2*len(adc_pins.dat_a_p)
+		
+		adc = ActorNode(ADC(adc_pins))
+		buf = ActorNode(Buffer)
+		wc = ActorNode(Collector(adc.actor.token("samples").layout()))
+		
+		baseapp.csrs.request("wc", UID_WAVEFORM_COLLECTOR, *wc.actor.get_registers())
+		
+		g = DataFlowGraph()
+		g.add_connection(adc, buf)
+		g.add_connection(buf, wc)
+		super().__init__(g)
+
 COMPONENTS = [
 	CRGFMC150,
 	LedBlinker,
 	(LedController, {"count": 4}),
 	FMC150Controller,
-	FullWaveformGenerator
+	FullWaveformGenerator,
+	FullWaveformCollector
 ]

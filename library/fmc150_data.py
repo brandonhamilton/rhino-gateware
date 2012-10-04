@@ -184,7 +184,7 @@ class DAC(_BaseDAC):
 		# mux test pattern, enable DAC, accept tokens
 		token = self.token("samples")
 		iotest = self._test_pattern_en.field.r
-		pulse_frame = self._pulse_frame.re
+		pulse_frame = Signal()
 		frame_div = Signal(BV(3))
 		mi = Signal(BV(2*dw))
 		mq = Signal(BV(2*dw))
@@ -203,7 +203,7 @@ class DAC(_BaseDAC):
 				mi.eq(token.i),
 				mq.eq(token.q)
 			),
-			If(pulse_frame | ((frame_div == 0) & (iotest | self.endpoints["samples"].stb)),
+			If((frame_div == 0) & (pulse_frame | iotest | self.endpoints["samples"].stb),
 				fr.eq(0x6)
 			).Else(
 				fr.eq(0x0)
@@ -211,6 +211,12 @@ class DAC(_BaseDAC):
 		]
 		mq_d = Signal(BV(2*dw))
 		sync = [
+			If(frame_div == 0,
+				pulse_frame.eq(0)
+			),
+			If(self._pulse_frame.re,
+				pulse_frame.eq(1)
+			),
 			self._pins.txenable.eq(iotest | self.endpoints["samples"].stb),
 			frame_div.eq(frame_div + 1),
 			mq_d.eq(mq)
@@ -238,7 +244,7 @@ class DAC2X(_BaseDAC):
 		# mux test pattern, enable DAC, accept tokens
 		token = self.token("samples")
 		iotest = self._test_pattern_en.field.r
-		pulse_frame = self._pulse_frame.re
+		pulse_frame = Signal()
 		frame_div = Signal(BV(2))
 		mi0 = Signal(BV(2*dw))
 		mq0 = Signal(BV(2*dw))
@@ -258,7 +264,7 @@ class DAC2X(_BaseDAC):
 				mi1.eq(token.i1),
 				mq1.eq(token.q1)
 			),
-			If(pulse_frame | ((frame_div == 0) & (iotest | self.endpoints["samples"].stb)),
+			If((frame_div == 0) & (pulse_frame | iotest | self.endpoints["samples"].stb),
 				fr.eq(0x60)
 			).Else(
 				fr.eq(0x00)
@@ -266,6 +272,12 @@ class DAC2X(_BaseDAC):
 		]
 		mq1_d = Signal(BV(2*dw))
 		sync = [
+			If(frame_div == 0,
+				pulse_frame.eq(0)
+			),
+			If(self._pulse_frame.re,
+				pulse_frame.eq(1)
+			),
 			self._pins.txenable.eq(iotest | self.endpoints["samples"].stb),
 			frame_div.eq(frame_div + 1),
 			mq1_d.eq(mq1)

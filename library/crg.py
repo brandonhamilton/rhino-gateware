@@ -90,11 +90,11 @@ TIMESPEC "TSclk_adc" = PERIOD "GRPclk_adc" 8.13 ns HIGH 50%;
 		)
 		
 		# receive differential ADC clock
-		post_ibufds = Signal()
-		ibufds = Instance("IBUFDS",
+		post_ibufgds = Signal()
+		ibufgds = Instance("IBUFGDS",
 			Instance.Input("I", self._fmc_clocks.adc_clk_p),
 			Instance.Input("IB", self._fmc_clocks.adc_clk_n),
-			Instance.Output("O", post_ibufds)
+			Instance.Output("O", post_ibufgds)
 		)
 		
 		# generate phase aligned clocks with PLL
@@ -108,15 +108,15 @@ TIMESPEC "TSclk_adc" = PERIOD "GRPclk_adc" 8.13 ns HIGH 50%;
 		pll = Instance("PLL_BASE",
 			Instance.Parameter("BANDWIDTH", "OPTIMIZED"),
 			Instance.Parameter("CLKFBOUT_MULT", 8),
-			Instance.Parameter("CLKFBOUT_PHASE", 0.0),
+			Instance.Parameter("CLKFBOUT_PHASE", -45.0),
 			
-			Instance.Parameter("COMPENSATION", "SYSTEM_SYNCHRONOUS"),
+			Instance.Parameter("COMPENSATION", "SOURCE_SYNCHRONOUS"),
 			Instance.Parameter("DIVCLK_DIVIDE", 1),
 			Instance.Parameter("REF_JITTER", 0.100),
 			Instance.Parameter("CLK_FEEDBACK", "CLKFBOUT"),
 			
 			Instance.Parameter("CLKIN_PERIOD", 8.13),
-			Instance.Input("CLKIN", post_ibufds),
+			Instance.Input("CLKIN", post_ibufgds),
 
 			# 1x system clock
 			Instance.Parameter("CLKOUT0_DIVIDE", 8),
@@ -228,7 +228,7 @@ TIMESPEC "TSclk_adc" = PERIOD "GRPclk_adc" 8.13 ns HIGH 50%;
 			self.reg_pll_locked.field.w.eq(pll_locked)
 		]
 		
-		return Fragment(comb, instances=[ibufds100, ibufds,
+		return Fragment(comb, instances=[ibufds100, ibufgds,
 			pll, bufg_fb, bufg_pll0,
 			bufg_1x, bufg_dac, bufpll_dacio,
 			oddr2_dac, obufds_dac,

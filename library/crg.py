@@ -108,7 +108,7 @@ TIMESPEC "TSclk_adc" = PERIOD "GRPclk_adc" 8.13 ns HIGH 50%;
 		pll = Instance("PLL_BASE",
 			Instance.Parameter("BANDWIDTH", "OPTIMIZED"),
 			Instance.Parameter("CLKFBOUT_MULT", 8),
-			Instance.Parameter("CLKFBOUT_PHASE", -45.0),
+			Instance.Parameter("CLKFBOUT_PHASE", -90.0),
 			
 			Instance.Parameter("COMPENSATION", "SOURCE_SYNCHRONOUS"),
 			Instance.Parameter("DIVCLK_DIVIDE", 1),

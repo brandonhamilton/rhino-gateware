@@ -338,8 +338,8 @@ class ADC(Actor):
 					Instance.Parameter("SRTYPE", "SYNC"),
 					
 					Instance.Input("D", single_ended_a),
-					Instance.Output("Q0", token.a[2*i]),
-					Instance.Output("Q1", token.a[2*i+1]),
+					Instance.Output("Q0", token.a[2*i+1]),
+					Instance.Output("Q1", token.a[2*i]),
 					
 					Instance.ClockPort("C0", invert=False),
 					Instance.ClockPort("C1", invert=True),
@@ -354,8 +354,8 @@ class ADC(Actor):
 					Instance.Parameter("SRTYPE", "SYNC"),
 					
 					Instance.Input("D", single_ended_b),
-					Instance.Output("Q0", token.b[2*i]),
-					Instance.Output("Q1", token.b[2*i+1]),
+					Instance.Output("Q0", token.b[2*i+1]),
+					Instance.Output("Q1", token.b[2*i]),
 					
 					Instance.ClockPort("C0", invert=False),
 					Instance.ClockPort("C1", invert=True),

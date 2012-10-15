@@ -2,65 +2,84 @@ from migen.fhdl.structure import *
 from migen.bank.description import *
 from migen.flow.actor import *
 from migen.corelogic.fsm import FSM
+from migen.transform.unroll import unroll_sync
 
 MODE_DISABLED = 0
 MODE_LOAD = 1
 MODE_PLAYBACK = 2
 
 class WaveformGenerator(Actor):
-	def __init__(self, depth, width=16):
+	def __init__(self, depth, width=16, spc=1):
 		self.depth = depth
 		self.width = width
+		self.spc = spc
 		
 		self._mode = RegisterField("mode", 2)
 		self._busy = RegisterField("busy", access_bus=READ_ONLY, access_dev=WRITE_ONLY)
 		self._size = RegisterField("size", bits_for(self.depth), reset=self.depth)
 		self._mult = RegisterField("mult", bits_for(self.depth), reset=1)
-		self._data_in = RegisterField("data_in", self.width)
-		self._shift_data = RegisterField("shift_data", access_bus=WRITE_ONLY)
+		self._data_ins = [RegisterField("data_in" + str(i), self.width) for i in range(self.spc)]
+		self._shift_data = RegisterRaw("shift_data")
 		
-		super().__init__(("sample", Source, [("value", BV(self.width))]))
+		layout = [("value" + str(i), BV(self.width)) for i in range(self.spc)]
+		super().__init__(("sample", Source, layout))
 
 	def get_registers(self):
 		return [self._mode, self._busy,
-			self._size, self._mult,
-			self._data_in, self._shift_data]
+			self._size, self._mult] \
+			+ self._data_ins + [self._shift_data]
 		
 	def get_fragment(self):
 		# memory
-		mem_a = Signal(BV(bits_for(self.depth-1)))
-		mem_re = Signal()
-		mem_dr = Signal(BV(self.width))
-		mem_we = Signal()
-		mem_dw = Signal(BV(self.width))
-		mem = Memory(self.width, self.depth,
-			MemoryPort(mem_a, mem_dr, mem_we, mem_dw, re=mem_re))
+		mem_ports = [MemoryPort(
+			Signal(BV(bits_for(self.depth-1))), # a
+			Signal(BV(self.width)), # dr
+			Signal(), # we
+			Signal(BV(self.width)), # dw
+			re=Signal() # re
+			) for i in range(self.spc)]
+		mem = Memory(self.width, self.depth, *mem_ports)
+		self.dbg = mem
 		
 		# address generator
+		mem_a = Signal(BV(bits_for(self.depth-1)))
 		v_mem_a = Signal(BV(bits_for(self.depth-1)+1), variable=True)
 		adr_reset = Signal()
 		adr_inc_1 = Signal()
 		adr_inc_mult = Signal()
-		sync = [
-			If(adr_reset,
-				v_mem_a.eq(0)
-			).Elif(adr_inc_1,
-				v_mem_a.eq(mem_a + 1)
-			).Elif(adr_inc_mult,
-				v_mem_a.eq(mem_a + self._mult.field.r)
-			),
-			If(v_mem_a >= self._size.field.r,
-				v_mem_a.eq(v_mem_a - self._size.field.r)
-			),
-			mem_a.eq(v_mem_a)
-		]
+		def adrgen_stmts(n):
+			return [
+				v_mem_a.eq(mem_a),
+				If(adr_reset,
+					v_mem_a.eq(n)
+				).Elif(adr_inc_1,
+					v_mem_a.eq(v_mem_a + 1)
+				).Elif(adr_inc_mult,
+					v_mem_a.eq(v_mem_a + self._mult.field.r)
+				),
+				If(v_mem_a >= self._size.field.r,
+					v_mem_a.eq(v_mem_a - self._size.field.r)
+				),
+				mem_a.eq(v_mem_a)
+			]
+		sync = [If(adr_reset | adr_inc_1 | adr_inc_mult,
+			*unroll_sync(adrgen_stmts, {}, {mem_a: [port.adr for port in mem_ports]}))]
 		
 		# glue
+		mem_re = Signal()
+		mem_we = Signal()
+		mem_dat_ws = [port.dat_w for port in mem_ports]
+		data_in_rs = [r.field.r for r in self._data_ins]
 		comb = [
-			self.token("sample").value.eq(mem_dr),
-			mem_dw.eq(self._data_in.field.r),
+			Cat(*mem_dat_ws).eq(Cat(*data_in_rs)),
 			self._busy.field.w.eq(self.busy)
 		]
+		for i, port in enumerate(mem_ports):
+			comb += [
+				port.re.eq(mem_re),
+				port.we.eq(mem_we),
+				getattr(self.token("sample"), "value" + str(i)).eq(port.dat_r)
+			]
 		
 		# control
 		fsm = FSM("IDLE", "LOAD", "FLUSH", "PLAYBACK")

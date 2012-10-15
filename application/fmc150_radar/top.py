@@ -1,7 +1,7 @@
 from migen.flow.network import *
 from migen.flow.plumbing import Buffer
-from migen.actorlib.structuring import Cast
 from migen.actorlib.spi import Collector
+from migen.bank.description import regprefix
 
 from library.uid import UID_WAVEFORM_GENERATOR, UID_WAVEFORM_COLLECTOR
 from library.crg import CRGFMC150
@@ -15,17 +15,18 @@ class FullWaveformGenerator(CompositeActor):
 		dac_pins = baseapp.constraints.request("fmc150_dac")
 		width = 2*len(dac_pins.dat_p)
 		
-		wg = ActorNode(WaveformGenerator(1024, 4*width))
+		wg_i = ActorNode(WaveformGenerator(1024, width, 2))
+		wg_q = ActorNode(WaveformGenerator(1024, width, 2))
 		dac = ActorNode(DAC2X(dac_pins, baseapp.crg.dacio_strb))
-		cast = ActorNode(Cast(wg.actor.token("sample").layout(),
-			dac.actor.token("samples").layout()))
-		
-		registers = wg.actor.get_registers() + dac.actor.get_registers()
+
+		registers = regprefix("i_", wg_i.actor.get_registers()) \
+			+ regprefix("q_", wg_q.actor.get_registers()) \
+			+ dac.actor.get_registers()
 		baseapp.csrs.request("wg", UID_WAVEFORM_GENERATOR, *registers)
 		
 		g = DataFlowGraph()
-		g.add_connection(wg, cast)
-		g.add_connection(cast, dac)
+		g.add_connection(wg_i, dac, sink_subr=["i0", "i1"])
+		g.add_connection(wg_q, dac, sink_subr=["q0", "q1"])
 		super().__init__(g)
 
 class FullWaveformCollector(CompositeActor):

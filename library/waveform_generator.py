@@ -63,7 +63,7 @@ class WaveformGenerator(Actor):
 				mem_a.eq(v_mem_a)
 			]
 		sync = [If(adr_reset | adr_inc_1 | adr_inc_mult,
-			*unroll_sync(adrgen_stmts, {}, {mem_a: [port.adr for port in mem_ports]}))]
+			*unroll_sync(adrgen_stmts, {mem_a: [port.adr for port in mem_ports]}))]
 		
 		# glue
 		mem_re = Signal()

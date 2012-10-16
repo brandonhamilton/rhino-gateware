@@ -2,7 +2,6 @@ from migen.fhdl.structure import *
 from migen.bank.description import *
 from migen.flow.actor import *
 from migen.corelogic.fsm import FSM
-from migen.transform.unroll import unroll_sync
 
 MODE_DISABLED = 0
 MODE_LOAD = 1
@@ -39,31 +38,28 @@ class WaveformGenerator(Actor):
 			re=Signal() # re
 			) for i in range(self.spc)]
 		mem = Memory(self.width, self.depth, *mem_ports)
-		self.dbg = mem
 		
 		# address generator
-		mem_a = Signal(BV(bits_for(self.depth-1)))
-		v_mem_a = Signal(BV(bits_for(self.depth-1)+1), variable=True)
 		adr_reset = Signal()
 		adr_inc_1 = Signal()
 		adr_inc_mult = Signal()
-		def adrgen_stmts(n):
-			return [
-				v_mem_a.eq(mem_a),
+		sync = []
+		for n, port in enumerate(mem_ports):
+			v_mem_a = Signal(BV(bits_for(self.depth-1)+1), variable=True)
+			sync += [
+				v_mem_a.eq(port.adr),
 				If(adr_reset,
-					v_mem_a.eq(n)
+					v_mem_a.eq(n*self._mult.field.r)
 				).Elif(adr_inc_1,
-					v_mem_a.eq(v_mem_a + 1)
+					v_mem_a.eq(v_mem_a + self.spc)
 				).Elif(adr_inc_mult,
-					v_mem_a.eq(v_mem_a + self._mult.field.r)
+					v_mem_a.eq(v_mem_a + self.spc*self._mult.field.r)
 				),
 				If(v_mem_a >= self._size.field.r,
 					v_mem_a.eq(v_mem_a - self._size.field.r)
 				),
-				mem_a.eq(v_mem_a)
+				port.adr.eq(v_mem_a)
 			]
-		sync = [If(adr_reset | adr_inc_1 | adr_inc_mult,
-			*unroll_sync(adrgen_stmts, {mem_a: [port.adr for port in mem_ports]}))]
 		
 		# glue
 		mem_re = Signal()

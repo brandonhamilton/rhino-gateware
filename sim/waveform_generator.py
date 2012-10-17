@@ -15,7 +15,7 @@ from library.waveform_generator import WaveformGenerator
 # The WaveformGenerator component gives an abstract list of registers.
 # This derived class implements it on a CSR bus.
 class CSRWG(WaveformGenerator):
-	def __init__(self, address, depth, width=16, spc=1):
+	def __init__(self, address, depth, width, spc):
 		super().__init__(depth, width, spc)
 		self.bank = csrgen.Bank(self.get_registers(), address)
 	
@@ -24,9 +24,11 @@ class CSRWG(WaveformGenerator):
 
 width = 16
 depth = 512
-values = [int((2**(width-1) - 1)*(sin(2*pi*x/depth) + 1)) for x in range(depth)]
+values_i = [int((2**(width-1) - 1)*(sin(2*pi*x/depth) + 1)) for x in range(depth)]
+values_q = [int((2**(width-1) - 1)*(sin(2*pi*x/depth - pi/2) + 1)) for x in range(depth)]
 
-received_values = []
+received_values_i = []
+received_values_q = []
 
 csr_mode = 0
 csr_busy = 1
@@ -40,7 +42,7 @@ csr_data_in_h1 = 8
 csr_data_in_l1 = 9
 csr_shift_data = 10
 
-def programmer():
+def programmer(values, received_values):
 	# Go to "load waveform" mode
 	yield TWrite(csr_mode, 1)
 	# Load the waveform
@@ -73,34 +75,50 @@ def receiver():
 	while True:
 		t = Token("sample")
 		yield t
-		received_values.append(t.value["value0"])
-		received_values.append(t.value["value1"])
+		received_values_i.append(t.value["i0"])
+		received_values_q.append(t.value["q0"])
+		received_values_i.append(t.value["i1"])
+		received_values_q.append(t.value["q1"])
 
 def main():
 	# Create a simple dataflow system
-	wg = ActorNode(CSRWG(0, depth, width, 2))
-	sink = ActorNode(SimActor(receiver(), ("sample", Sink, [("value0", BV(width)), ("value1", BV(width))])))
+	receiver_layout = [
+		("i0", BV(width)),
+		("q0", BV(width)),
+		("i1", BV(width)),
+		("q1", BV(width))
+	]
+	wg_i = ActorNode(CSRWG(0, depth, width, 2))
+	wg_q = ActorNode(CSRWG(0, depth, width, 2))
+	sink = ActorNode(SimActor(receiver(), ("sample", Sink, receiver_layout)))
 	g = DataFlowGraph()
-	g.add_connection(wg, sink)
+	g.add_connection(wg_i, sink, sink_subr=["i0", "i1"])
+	g.add_connection(wg_q, sink, sink_subr=["q0", "q1"])
 	comp = CompositeActor(g)
 	
 	# CSR programmer and interconnect
-	csr_prog = csr.Initiator(programmer())
-	csr_intercon = csr.Interconnect(csr_prog.bus, [wg.actor.bank.interface])
+	csr_i_prog = csr.Initiator(programmer(values_i, received_values_i))
+	csr_i_intercon = csr.Interconnect(csr_i_prog.bus, [wg_i.actor.bank.interface])
+	csr_q_prog = csr.Initiator(programmer(values_q, received_values_q))
+	csr_q_intercon = csr.Interconnect(csr_q_prog.bus, [wg_q.actor.bank.interface])
 
 	# Run the simulation until the CSR programmer finishes
 	def end_simulation(s):
-		s.interrupt = csr_prog.done
-	frag = comp.get_fragment() + csr_prog.get_fragment() + csr_intercon.get_fragment() \
+		s.interrupt = csr_i_prog.done and csr_q_prog.done
+	frag = comp.get_fragment() \
+		+ csr_i_prog.get_fragment() + csr_i_intercon.get_fragment() \
+		+ csr_q_prog.get_fragment() + csr_q_intercon.get_fragment() \
 		+ Fragment(sim=[end_simulation])
 	sim = Simulator(frag, Runner())
 	sim.run()
 	
 	# Check correctness of the first received values
-	assert(received_values[:depth] == values)
+	assert(received_values_i[:depth] == values_i)
+	assert(received_values_q[:depth] == values_q)
 	
 	# Plot waveform
-	plt.plot(received_values)
+	plt.plot(received_values_i)
+	plt.plot(received_values_q)
 	plt.show()
 
 main()

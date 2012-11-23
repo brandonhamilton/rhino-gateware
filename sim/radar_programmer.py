@@ -72,16 +72,6 @@ class AdrGen(SimActor):
 			yield Token("address", {"a": 0})
 		super().__init__(adr_gen(),
 			("address", Source, [("a", BV(4))]))
-	
-class Dumper(SimActor):
-	def __init__(self, layout):
-		def dumper_gen():
-			while True:
-				t = Token("result")
-				yield t
-				print(t.value)
-		super().__init__(dumper_gen(),
-			("result", Sink, layout))
 
 def main():
 	table = Memory(8, 256, init=[
@@ -100,9 +90,9 @@ def main():
 	
 	n_adrgen = ActorNode(AdrGen())
 	n_rp = ActorNode(rp)
-	n_dump_wave = ActorNode(Dumper([("a", BV(4))]))
-	n_dump_attn = ActorNode(Dumper([("attn", BV(8))]))
-	n_dump_mod = ActorNode(Dumper([("addr", BV(7)), ("data", BV(16))]))
+	n_dump_wave = ActorNode(Dumper([("a", BV(4))], "wave: "))
+	n_dump_attn = ActorNode(Dumper([("attn", BV(8))], "attn: "))
+	n_dump_mod = ActorNode(Dumper([("addr", BV(7)), ("data", BV(16))], "mod : "))
 	
 	g = DataFlowGraph()
 	g.add_connection(n_adrgen, n_rp)

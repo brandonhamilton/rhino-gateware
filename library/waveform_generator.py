@@ -30,14 +30,9 @@ class WaveformGenerator(Actor):
 		
 	def get_fragment(self):
 		# memory
-		mem_ports = [MemoryPort(
-			Signal(BV(bits_for(self.depth-1))), # a
-			Signal(BV(self.width)), # dr
-			Signal(), # we
-			Signal(BV(self.width)), # dw
-			re=Signal() # re
-			) for i in range(self.spc)]
-		mem = Memory(self.width, self.depth, *mem_ports)
+		mem = Memory(self.width, self.depth)
+		mem_ports = [mem.get_port(write_capable=True, has_re=True) 
+			for i in range(self.spc)]
 		
 		# address generator
 		adr_reset = Signal()

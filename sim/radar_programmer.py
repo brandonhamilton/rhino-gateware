@@ -71,7 +71,7 @@ class AdrGen(SimActor):
 		def adr_gen():
 			yield Token("address", {"a": 0})
 		super().__init__(adr_gen(),
-			("address", Source, [("a", BV(4))]))
+			("address", Source, [("a", 4)]))
 
 def main():
 	table = Memory(8, 256, init=[
@@ -81,18 +81,18 @@ def main():
 	
 	rp = make_pytholite(tx_programmer,
 		dataflow=[
-			("address", Sink, [("a", BV(4))]),
-			("wave", Source, [("wave", BV(4))]),
-			("attn", Source, [("attn", BV(8))]),
-			("mod", Source, [("addr", BV(7)), ("data", BV(16))])
+			("address", Sink, [("a", 4)]),
+			("wave", Source, [("wave", 4)]),
+			("attn", Source, [("attn", 8)]),
+			("mod", Source, [("addr", 7), ("data", 16)])
 		],
 		buses={"table": table})
 	
 	n_adrgen = ActorNode(AdrGen())
 	n_rp = ActorNode(rp)
-	n_dump_wave = ActorNode(Dumper([("a", BV(4))], "wave: "))
-	n_dump_attn = ActorNode(Dumper([("attn", BV(8))], "attn: "))
-	n_dump_mod = ActorNode(Dumper([("addr", BV(7)), ("data", BV(16))], "mod : "))
+	n_dump_wave = ActorNode(Dumper([("a", 4)], "wave: "))
+	n_dump_attn = ActorNode(Dumper([("attn", 8)], "attn: "))
+	n_dump_mod = ActorNode(Dumper([("addr", 7), ("data", 16)], "mod : "))
 	
 	g = DataFlowGraph()
 	g.add_connection(n_adrgen, n_rp)

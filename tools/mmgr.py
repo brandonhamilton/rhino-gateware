@@ -56,7 +56,7 @@ class CSRManager:
 
 class StreamPort:
 	def __init__(self, data_width):
-		self.data = Signal(BV(data_width))
+		self.data = Signal(data_width)
 		self.stb = Signal()
 		self.ack = Signal()
 		

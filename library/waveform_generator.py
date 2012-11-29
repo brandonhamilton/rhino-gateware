@@ -20,7 +20,7 @@ class WaveformGenerator(Actor):
 		self._data_ins = [RegisterField("data_in" + str(i), self.width) for i in range(self.spc)]
 		self._shift_data = RegisterRaw("shift_data")
 		
-		layout = [("value" + str(i), BV(self.width)) for i in range(self.spc)]
+		layout = [("value" + str(i), self.width) for i in range(self.spc)]
 		super().__init__(("sample", Source, layout))
 
 	def get_registers(self):
@@ -40,7 +40,7 @@ class WaveformGenerator(Actor):
 		adr_inc_mult = Signal()
 		sync = []
 		for n, port in enumerate(mem_ports):
-			v_mem_a = Signal(BV(bits_for(self.depth-1)+1), variable=True)
+			v_mem_a = Signal(bits_for(self.depth-1)+1, variable=True)
 			sync += [
 				v_mem_a.eq(port.adr),
 				If(adr_reset,

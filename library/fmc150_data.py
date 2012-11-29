@@ -154,15 +154,15 @@ class _BaseDAC(Actor):
 		
 		if double:
 			layout = [
-				("i0", BV(width)),
-				("q0", BV(width)),
-				("i1", BV(width)),
-				("q1", BV(width))
+				("i0", width),
+				("q0", width),
+				("i1", width),
+				("q1", width)
 			]
 		else:
 			layout = [
-				("i", BV(width)),
-				("q", BV(width))
+				("i", width),
+				("q", width)
 			]
 		
 		super().__init__(("samples", Sink, layout))
@@ -185,10 +185,10 @@ class DAC(_BaseDAC):
 		token = self.token("samples")
 		iotest = self._test_pattern_en.field.r
 		pulse_frame = Signal()
-		frame_div = Signal(BV(3))
-		mi = Signal(BV(2*dw))
-		mq = Signal(BV(2*dw))
-		fr = Signal(BV(4))
+		frame_div = Signal(3)
+		mi = Signal(2*dw)
+		mq = Signal(2*dw)
+		fr = Signal(4)
 		comb = [
 			self.endpoints["samples"].ack.eq(~iotest),
 			If(iotest,
@@ -209,7 +209,7 @@ class DAC(_BaseDAC):
 				fr.eq(0x0)
 			)
 		]
-		mq_d = Signal(BV(2*dw))
+		mq_d = Signal(2*dw)
 		sync = [
 			If(frame_div == 0,
 				pulse_frame.eq(0)
@@ -245,12 +245,12 @@ class DAC2X(_BaseDAC):
 		token = self.token("samples")
 		iotest = self._test_pattern_en.field.r
 		pulse_frame = Signal()
-		frame_div = Signal(BV(2))
-		mi0 = Signal(BV(2*dw))
-		mq0 = Signal(BV(2*dw))
-		mi1 = Signal(BV(2*dw))
-		mq1 = Signal(BV(2*dw))
-		fr = Signal(BV(8))
+		frame_div = Signal(2)
+		mi0 = Signal(2*dw)
+		mq0 = Signal(2*dw)
+		mi1 = Signal(2*dw)
+		mq1 = Signal(2*dw)
+		fr = Signal(8)
 		comb = [
 			self.endpoints["samples"].ack.eq(~iotest),
 			If(iotest,
@@ -270,7 +270,7 @@ class DAC2X(_BaseDAC):
 				fr.eq(0x00)
 			)
 		]
-		mq1_d = Signal(BV(2*dw))
+		mq1_d = Signal(2*dw)
 		sync = [
 			If(frame_div == 0,
 				pulse_frame.eq(0)
@@ -302,8 +302,8 @@ class ADC(Actor):
 		
 		width = 2*len(self._pins.dat_a_p)
 		super().__init__(("samples", Source, [
-			("a", BV(width)),
-			("b", BV(width))
+			("a", width),
+			("b", width)
 		]))
 	
 	def get_fragment(self):

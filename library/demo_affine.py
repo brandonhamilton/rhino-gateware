@@ -22,12 +22,12 @@ class DemoAffine:
 		pmac = []
 		result = self.reg_a.field.r*self.port_in.data + self.reg_b.field.r
 		for stage in range(self.pipeline_depth):
-			iresult = Signal(BV(width))
+			iresult = Signal(width)
 			pmac.append(iresult.eq(result))
 			result = iresult
 		
 		en = Signal()
-		valid = Signal(BV(self.pipeline_depth))
+		valid = Signal(self.pipeline_depth)
 		sync = [
 			If(en, *pmac),
 			If(en, valid.eq(Cat(valid[1:], self.port_in.stb)))

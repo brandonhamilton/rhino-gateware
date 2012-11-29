@@ -83,10 +83,10 @@ def receiver():
 def main():
 	# Create a simple dataflow system
 	receiver_layout = [
-		("i0", BV(width)),
-		("q0", BV(width)),
-		("i1", BV(width)),
-		("q1", BV(width))
+		("i0", width),
+		("q0", width),
+		("i1", width),
+		("q1", width)
 	]
 	wg_i = ActorNode(CSRWG(0, depth, width, 2))
 	wg_q = ActorNode(CSRWG(0, depth, width, 2))

@@ -13,7 +13,7 @@ class LedBlinker:
 		self._divbits = divbits
 	
 	def get_fragment(self):
-		counter = Signal(BV(self._divbits))
+		counter = Signal(self._divbits)
 		comb = [
 			self._led.eq(counter[self._divbits-1])
 		]

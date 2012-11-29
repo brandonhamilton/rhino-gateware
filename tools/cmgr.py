@@ -36,7 +36,7 @@ def _resource_type(resource):
 	for element in resource[2:]:
 		if isinstance(element, Pins):
 			assert(t is None)
-			t = BV(len(element.identifiers))
+			t = len(element.identifiers)
 		elif isinstance(element, Subsignal):
 			if t is None:
 				t = []
@@ -46,7 +46,7 @@ def _resource_type(resource):
 				if isinstance(c, Pins):
 					assert(n_bits is None)
 					n_bits = len(c.identifiers)
-			t.append((element.name, BV(n_bits)))
+			t.append((element.name, n_bits))
 	return t
 
 def _match(description, requests):
@@ -93,17 +93,17 @@ class ConstraintManager:
 		# If obj is None, then create it.
 		# If it already exists, do some sanity checking.
 		if obj is None:
-			if isinstance(t, BV):
+			if isinstance(t, int):
 				obj = Signal(t, name_override=r[0])
 			else:
 				obj = Record(t)
 		else:
-			if isinstance(t, BV):
-				assert(isinstance(obj, Signal) and obj.bv == t)
+			if isinstance(t, int):
+				assert(isinstance(obj, Signal) and obj.nbits == t)
 			else:
 				for e in t:
 					sig = getattr(obj, e[0])
-					assert(isinstance(sig, Signal) and sig.bv == e[1])
+					assert(isinstance(sig, Signal) and sig.nbits == e[1])
 
 		# Register the request
 		self.requests.append((name, number, obj))

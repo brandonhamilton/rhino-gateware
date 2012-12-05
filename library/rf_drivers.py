@@ -1,8 +1,10 @@
 from migen.fhdl.structure import *
+from migen.flow.actor import *
+from migen.bank.description import *
 from migen.corelogic.fsm import FSM
 
 # 6-bit RF digital attenuator
-class PE4302Driver(Actor):
+class PE43602Driver(Actor):
 	def __init__(self, cycle_bits=8):
 		self.d = Signal()
 		self.clk = Signal()
@@ -10,12 +12,12 @@ class PE4302Driver(Actor):
 		
 		self._cycle_bits = cycle_bits
 		
-		self._pos_end_cycle = RegisterField("pos_end_cycle", self._cycle_bits)
-		self._pos_data = RegisterField("pos_data", self._cycle_bits)
-		self._pos_le_high = RegisterField("le_delay", self._cycle_bits)
-		self._pos_le_low = RegisterField("le_width", self._cycle_bits)
+		self._pos_end_cycle = RegisterField("pos_end_cycle", self._cycle_bits, reset=20)
+		self._pos_data = RegisterField("pos_data", self._cycle_bits, reset=0)
+		self._pos_le_high = RegisterField("pos_le_high", self._cycle_bits, reset=5)
+		self._pos_le_low = RegisterField("pos_le_low", self._cycle_bits, reset=15)
 		
-		super().__init__(("attn", Source, [("attn", 8)]))
+		super().__init__(("attn", Sink, [("attn", 8)]))
 	
 	def get_registers(self):
 		return [self._pos_end_cycle, self._pos_data, self._le_delay, self._le_width]
@@ -30,7 +32,7 @@ class PE4302Driver(Actor):
 		]
 		sync = [
 			If(eoc | cycle_counter_reset,
-				cycle_counter.eq(0),
+				cycle_counter.eq(0)
 			).Else(
 				cycle_counter.eq(cycle_counter + 1)
 			)
@@ -46,8 +48,9 @@ class PE4302Driver(Actor):
 		]
 		
 		le_counter = Signal(self._cycle_bits)
+		le_counter_reset = Signal()
 		sync += [
-			If(ev_clk_high,
+			If(le_counter_reset,
 				le_counter.eq(0)
 			).Else(
 				le_counter.eq(le_counter + 1)
@@ -65,13 +68,16 @@ class PE4302Driver(Actor):
 		sr = Signal(8)
 		sr_load = Signal()
 		sr_shift = Signal()
+		remaining_data = Signal(4)
 		sync += [
 			If(sr_load,
-				sr.eq(self.token("attn").attn)
+				sr.eq(self.token("attn").attn),
+				remaining_data.eq(8)
 			).Elif(sr_shift,
-				sr.eq(sr[1:])
-			),
-			self.d.eq(sr_shift[0])
+				sr.eq(sr[1:]),
+				self.d.eq(sr[0]),
+				remaining_data.eq(remaining_data-1)
+			)
 		]
 		
 		# clock
@@ -105,6 +111,7 @@ class PE4302Driver(Actor):
 		
 		fsm.act(fsm.WAIT_DATA,
 			cycle_counter_reset.eq(1),
+			le_counter_reset.eq(1),
 			sr_load.eq(1),
 			self.endpoints["attn"].ack.eq(1),
 			If(self.endpoints["attn"].stb,
@@ -112,6 +119,7 @@ class PE4302Driver(Actor):
 			)
 		)
 		fsm.act(fsm.TRANSFER_DATA,
+			le_counter_reset.eq(1),
 			self.busy.eq(1),
 			clk_high.eq(ev_clk_high),
 			clk_low.eq(ev_clk_low),
@@ -121,6 +129,7 @@ class PE4302Driver(Actor):
 			)
 		)
 		fsm.act(fsm.LE,
+			cycle_counter_reset.eq(1),
 			self.busy.eq(1),
 			cycle_counter_reset.eq(1),
 			le_high.eq(ev_le_high),

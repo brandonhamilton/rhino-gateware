@@ -97,6 +97,21 @@ PLATFORM_RESOURCES = [
 	),
 	
 	("fmc150_ext_trigger", 0, Pins("U26")),
+	
+	# Vermeer radar testbed
+	("pe43602", 0,
+		Subsignal("d", Pins("H8")),
+		Subsignal("clk", Pins("B3")),
+		Subsignal("le", Pins("F7")),
+		IOStandard("LVCMOS33")
+	),
+	("rfmd2081", 0,
+		Subsignal("enx", Pins("E5")),
+		Subsignal("sclk", Pins("G6")),
+		Subsignal("sdata", Pins("F5")),
+		Subsignal("sdatao", Pins("E6")),
+		IOStandard("LVCMOS33")
+	),
 ]
 
 CSR_BASE = 0x08000000

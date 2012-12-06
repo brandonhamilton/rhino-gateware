@@ -1,10 +1,13 @@
 from migen.fhdl.structure import *
 from migen.flow.network import *
+from migen.actorlib.sim import Token # TODO: move this
 from migen.actorlib.spi import *
-from migen.bus import csr
 from migen.bus.transactions import *
 from migen.pytholite.transel import *
 from migen.pytholite.compiler import make_pytholite
+
+from library.uid import UID_RF_PROGRAMMER
+from library.rf_drivers import *
 
 # TX table entry format:
 #   0: <pad.1> <ctrl.3> <waveform.4>
@@ -64,13 +67,12 @@ def _programmer():
 					"addr": bitslice(d1, 0, 7),
 					"data": (d2 << 8) | d3})
 
-class RadarProgrammer:
-	def __init__(self, table_size, table_address):
+class RFProgrammerCore:
+	def __init__(self, table_size):
 		n_tx_entries_bits = bits_for(table_size//16-1)
 		
 		# table
-		table = Memory(8, table_size)
-		self.table_access = csr.SRAM(table, table_address)
+		self.table = Memory(8, table_size)
 		
 		# dataflow components
 		self._trigger = SingleGenerator([("a", n_tx_entries_bits)], MODE_SINGLE_SHOT)
@@ -82,10 +84,10 @@ class RadarProgrammer:
 				("mod", Source, [("addr", 7), ("data", 16)])
 			],
 			buses={
-				"table": table
+				"table": self.table
 			})
-		self.attenuator_driver = AttenuatorDriver()
-		self.modulator_driver = ModulatorDriver()
+		self.attenuator_driver = PE43602Driver()
+		self.modulator_driver = RFMD2081Driver()
 		
 		# dataflow network
 		# TODO: connect to waveform generator
@@ -99,13 +101,38 @@ class RadarProgrammer:
 		g.add_connection(programmer, attenuator_driver, "attn")
 		g.add_connection(programmer, modulator_driver, "mod")
 		self._network = CompositeActor(g)
-		self._busy = RegisterField("busy")
+		self._busy = RegisterField("busy", access_bus=READ_ONLY, access_dev=WRITE_ONLY)
 	
 	def get_registers(self):
-		return self.table_access.get_registers() + self._trigger.get_registers() + \
+		return self._trigger.get_registers() + \
 		  [self._busy] + \
 		  self.attenuator_driver.get_registers() + self.modulator_driver.get_registers()
 	
+	def get_memories(self):
+		return [self.table]
+	
 	def get_fragment(self):
-		return Fragment([self._busy.field.w.eq(self._network.busy)]) + \
-		  self.table_access.get_fragment() + self._network.get_fragment()
+		bf = Fragment([self._busy.field.w.eq(self._network.busy)])
+		return bf + self._network.get_fragment()
+
+class RFProgrammer:
+	def __init__(self, baseapp, table_size=1024):
+		self.core = RFProgrammerCore(table_size)
+		self.attenuator_pins = baseapp.constraints.request("pe43602")
+		self.modulator_pins = baseapp.constraints.request("rfmd2081")
+		
+		baseapp.csrs.request("rfp", UID_RF_PROGRAMMER, *self.core.get_registers(),
+			memories=self.core.get_memories())
+	
+	def get_fragment(self):
+		comb = [
+			self.attenuator_pins.d.eq(self.core.attenuator_driver.d),
+			self.attenuator_pins.clk.eq(self.core.attenuator_driver.clk),
+			self.attenuator_pins.le.eq(self.core.attenuator_driver.le),
+			
+			self.modulator_pins.enx.eq(self.core.modulator_driver.enx),
+			self.modulator_pins.sclk.eq(self.core.modulator_driver.sclk),
+			self.modulator_pins.sdata.eq(self.core.modulator_driver.sdata),
+			self.core.modulator_driver.sdatao.eq(self.modulator_pins.sdatao)
+		]
+		return Fragment(comb) + self.core.get_fragment()

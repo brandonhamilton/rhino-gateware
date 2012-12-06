@@ -75,9 +75,9 @@ TIMESPEC "TSclk_100" = PERIOD "GRPclk_100" 10 ns HIGH 50%;
 TIMESPEC "TSclk_adc" = PERIOD "GRPclk_adc" 8.13 ns HIGH 50%;
 """, clk_100=self._clk100.p, clk_adc=self._fmc_clocks.adc_clk_p)
 		
-		self.reg_pll_enable = RegisterField("pll_enable", 1)
-		self.reg_pll_locked = RegisterField("pll_locked", 1, access_bus=READ_ONLY, access_dev=WRITE_ONLY)
-		self.reg_clock_sel = RegisterField("clock_sel", 1)
+		self.reg_pll_enable = RegisterField("pll_enable")
+		self.reg_pll_locked = RegisterField("pll_locked", access_bus=READ_ONLY, access_dev=WRITE_ONLY)
+		self.reg_clock_sel = RegisterField("clock_sel")
 		baseapp.csrs.request(csr_name, UID_FMC150_CRG, self.reg_pll_enable, self.reg_pll_locked, self.reg_clock_sel)
 	
 	def get_fragment(self):

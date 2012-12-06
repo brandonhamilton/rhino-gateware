@@ -142,12 +142,17 @@ class PE43602Driver(Actor):
 		return Fragment(comb, sync) + fsm.get_fragment()
 
 # IQ Modulator with Synthesizer/VCO
-class RFMD2081Driver:
+class RFMD2081Driver(Actor):
 	def __init__(self):
-		pass
+		self.enx = Signal()
+		self.sclk = Signal()
+		self.sdata = Signal()
+		self.sdatao = Signal()
+		
+		super().__init__(("mod", Sink, [("addr", 7), ("data", 16)]))
 	
 	def get_registers(self):
 		return []
 	
 	def get_fragment(self):
-		return Fragment()
+		return Fragment([self.endpoints["mod"].ack.eq(1)])

@@ -20,7 +20,7 @@ class PE43602Driver(Actor):
 		super().__init__(("attn", Sink, [("attn", 8)]))
 	
 	def get_registers(self):
-		return [self._pos_end_cycle, self._pos_data, self._le_delay, self._le_width]
+		return [self._pos_end_cycle, self._pos_data, self._pos_le_high, self._pos_le_low]
 	
 	def get_fragment(self):
 		# cycle counter and events

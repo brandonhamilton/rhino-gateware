@@ -9,46 +9,58 @@ BOF_PERM_WRITE = 0x02
 
 class CSRManager:
 	def __init__(self):
-		self.banks = []
+		self.slots = []
 		self.master = None
 	
-	def request(self, name, uid, *registers):
+	def request(self, name, uid, *registers, memories=[]):
 		uid_inst = UID(uid)
 		all_registers = uid_inst.get_registers() + list(registers)
-		self.banks.append((name, all_registers, uid_inst))
+		
+		start_addr = len(self.slots)
+		memory_slots = []
+		for offset, memory in enumerate(memories):
+			access = csr.SRAM(memory, start_addr + 1 + offset)
+			all_registers += access.get_registers()
+			memory_slots.append((name, memory, [access]))
+			
+		bank = csrgen.Bank(all_registers, start_addr)
+		self.slots.append((name, all_registers, [bank, uid_inst]))
+		self.slots += memory_slots
 	
 	def get_fragment(self):
 		csr_f = Fragment()
 		csr_ifs = []
-		for address, (name, registers, uid_inst) in enumerate(self.banks):
-			bank = csrgen.Bank(registers, address)
-			csr_ifs.append(bank.interface)
-			csr_f += uid_inst.get_fragment() + bank.get_fragment()
+		for address, (name, what, instances) in enumerate(self.slots):
+			csr_ifs.append(instances[0].bus)
+			csr_f = sum([i.get_fragment() for i in instances], csr_f)
 		assert(self.master is not None)
 		csr_ic = csr.Interconnect(self.master, csr_ifs)
 		return csr_f + csr_ic.get_fragment()
 	
 	def get_symtab(self, base):
 		symtab = []
-		for name, registers, uid_inst in self.banks:
-			offset = 0
-			for register in registers:
-				if isinstance(register, RegisterRaw):
-					permission = BOF_PERM_READ|BOF_PERM_WRITE
-				else:
-					permission = 0
-					for f in register.fields:
-						if (f.access_bus == READ_ONLY) or (f.access_bus == READ_WRITE):
-							permission |= BOF_PERM_READ
-						if (f.access_bus == WRITE_ONLY) or (f.access_bus == READ_WRITE):
-							permission |= BOF_PERM_WRITE
-				if isinstance(register, RegisterRaw):
-					nbits = register.size
-				else:
-					nbits = sum([f.size for f in register.fields])
-				length = 2*((csr.data_width - 1 + nbits)//csr.data_width)
-				symtab.append((name + "_" + register.name, permission, base + offset, length))
-				offset += length
+		for name, what, instances in self.slots:
+			if isinstance(what, Memory):
+				symtab.append((name + "_mem", BOF_PERM_READ|BOF_PERM_WRITE, base, min(what.depth, 0x400)))
+			else:
+				offset = 0
+				for register in what:
+					if isinstance(register, RegisterRaw):
+						permission = BOF_PERM_READ|BOF_PERM_WRITE
+					else:
+						permission = 0
+						for f in register.fields:
+							if (f.access_bus == READ_ONLY) or (f.access_bus == READ_WRITE):
+								permission |= BOF_PERM_READ
+							if (f.access_bus == WRITE_ONLY) or (f.access_bus == READ_WRITE):
+								permission |= BOF_PERM_WRITE
+					if isinstance(register, RegisterRaw):
+						nbits = register.size
+					else:
+						nbits = sum([f.size for f in register.fields])
+					length = 2*((csr.data_width - 1 + nbits)//csr.data_width)
+					symtab.append((name + "_" + register.name, permission, base + offset, length))
+					offset += length
 			base += 0x400
 		return symtab
 

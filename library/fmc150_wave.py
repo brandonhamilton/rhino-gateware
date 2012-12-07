@@ -4,12 +4,8 @@ from migen.actorlib.spi import Collector
 from migen.bank.description import regprefix
 
 from library.uid import UID_WAVEFORM_GENERATOR, UID_WAVEFORM_COLLECTOR
-from library.crg import CRGFMC150
-from library.led_controller import LedBlinker, LedController
-from library.fmc150_controller import FMC150Controller
 from library.waveform_generator import WaveformGenerator
 from library.fmc150_data import DAC, DAC2X, ADC
-from library.radar_programmer import RFProgrammer
 
 class FullWaveformGenerator(CompositeActor):
 	def __init__(self, baseapp, double_dac):
@@ -52,15 +48,3 @@ class FullWaveformCollector(CompositeActor):
 		g.add_connection(adc, buf)
 		g.add_connection(buf, wc)
 		super().__init__(g)
-
-conf_double_dac = True
-
-COMPONENTS = [
-	(CRGFMC150, {"double_dac": conf_double_dac}),
-	LedBlinker,
-	(LedController, {"count": 4}),
-	FMC150Controller,
-	(FullWaveformGenerator, {"double_dac": conf_double_dac}),
-	FullWaveformCollector,
-	RFProgrammer
-]

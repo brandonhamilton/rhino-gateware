@@ -10,7 +10,8 @@ UID_FMC150_CRG = 4
 UID_WAVEFORM_GENERATOR = 5
 UID_WAVEFORM_COLLECTOR = 6
 
-UID_RF_PROGRAMMER = 0x100
+# 0x100 to 0x1ff are Vermeer components
+UID_VERMEER = 0x100
 
 class UID:
 	def __init__(self, uid):

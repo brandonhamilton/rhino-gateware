@@ -1,4 +1,20 @@
-import os, subprocess, shutil
+import os, subprocess, shutil, imp
+
+def try_import(search_dirs, path, name):
+	search_dirs = [os.path.join(search_dir, path) for search_dir in search_dirs]
+	f, filename, data = imp.find_module(name, search_dirs)
+	try:
+		m = imp.load_module(name, f, filename, data)
+	finally:
+		f.close()
+	return m
+
+def find_dir(search_dirs, path):
+	for search_dir in search_dirs:
+		full_dir = os.path.join(search_dir, path)
+		if os.path.isdir(full_dir):
+			return search_dir, full_dir
+	return None
 
 # Save a string to a file
 def write_to_file(filename, contents):
@@ -6,24 +22,20 @@ def write_to_file(filename, contents):
 	f.write(contents)
 	f.close()
 
-# Ensure a directory exists and is empty
-def ensure_empty_dir(d):
-	shutil.rmtree(d, ignore_errors=True)
-	os.makedirs(d)
-
-# Find all HDL source files within a path
-def find_hdl_source_files(path):
+# Find all HDL source files within paths
+def find_hdl_source_files(paths):
 	sources = []
-	for root, dirs, files in os.walk(path):
-		for name in files:
-			try:
-				extension = name.rsplit(".")[-1] 
-				if extension in ["vhd", "vhdl", "vho"]:
-					sources.extend([{"type": "vhdl", "path": os.path.join(root, name)}])
-				elif extension in ["v", "vh", "vo"]:
-					sources.extend([{"type": "verilog", "path": os.path.join(root, name)}])
-			except:
-				pass
+	for path in paths:
+		for root, dirs, files in os.walk(path):
+			for name in files:
+				try:
+					extension = name.rsplit(".")[-1] 
+					if extension in ["vhd", "vhdl", "vho"]:
+						sources.extend([{"type": "vhdl", "path": os.path.join(root, name)}])
+					elif extension in ["v", "vh", "vo"]:
+						sources.extend([{"type": "verilog", "path": os.path.join(root, name)}])
+				except:
+					pass
 	return sources
 
 # Write some nice art

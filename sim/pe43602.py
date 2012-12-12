@@ -16,7 +16,7 @@ class DataGen(SimActor):
 
 def main():
 	g = DataFlowGraph()
-	g.add_connection(ActorNode(DataGen()), ActorNode(PE43602Driver()))
+	g.add_connection(DataGen(), PE43602Driver())
 	c = CompositeActor(g)
 	
 	def end_simulation(s):

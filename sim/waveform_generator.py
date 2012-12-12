@@ -88,9 +88,9 @@ def main():
 		("i1", width),
 		("q1", width)
 	]
-	wg_i = ActorNode(CSRWG(0, depth, width, 2))
-	wg_q = ActorNode(CSRWG(0, depth, width, 2))
-	sink = ActorNode(SimActor(receiver(), ("sample", Sink, receiver_layout)))
+	wg_i = CSRWG(0, depth, width, 2)
+	wg_q = CSRWG(0, depth, width, 2)
+	sink = SimActor(receiver(), ("sample", Sink, receiver_layout))
 	g = DataFlowGraph()
 	g.add_connection(wg_i, sink, sink_subr=["i0", "i1"])
 	g.add_connection(wg_q, sink, sink_subr=["q0", "q1"])
@@ -98,9 +98,9 @@ def main():
 	
 	# CSR programmer and interconnect
 	csr_i_prog = csr.Initiator(programmer(values_i, received_values_i))
-	csr_i_intercon = csr.Interconnect(csr_i_prog.bus, [wg_i.actor.bank.interface])
+	csr_i_intercon = csr.Interconnect(csr_i_prog.bus, [wg_i.bank.interface])
 	csr_q_prog = csr.Initiator(programmer(values_q, received_values_q))
-	csr_q_intercon = csr.Interconnect(csr_q_prog.bus, [wg_q.actor.bank.interface])
+	csr_q_intercon = csr.Interconnect(csr_q_prog.bus, [wg_q.bank.interface])
 
 	# Run the simulation until the CSR programmer finishes
 	def end_simulation(s):

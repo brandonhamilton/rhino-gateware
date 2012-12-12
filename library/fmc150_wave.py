@@ -15,13 +15,13 @@ class FullWaveformGenerator(CompositeActor):
 		spc = 2 if double_dac else 1
 		dac_class = DAC2X if double_dac else DAC
 		
-		wg_i = ActorNode(WaveformGenerator(1024, width, spc))
-		wg_q = ActorNode(WaveformGenerator(1024, width, spc))
-		dac = ActorNode(dac_class(dac_pins, baseapp.crg.dacio_strb))
+		wg_i = WaveformGenerator(1024, width, spc)
+		wg_q = WaveformGenerator(1024, width, spc)
+		dac = dac_class(dac_pins, baseapp.crg.dacio_strb)
 
-		registers = regprefix("i_", wg_i.actor.get_registers()) \
-			+ regprefix("q_", wg_q.actor.get_registers()) \
-			+ dac.actor.get_registers()
+		registers = regprefix("i_", wg_i.get_registers()) \
+			+ regprefix("q_", wg_q.get_registers()) \
+			+ dac.get_registers()
 		baseapp.csrs.request("wg", UID_WAVEFORM_GENERATOR, *registers)
 		
 		g = DataFlowGraph()
@@ -38,11 +38,11 @@ class FullWaveformCollector(CompositeActor):
 		adc_pins = baseapp.constraints.request("fmc150_adc")
 		width = 2*len(adc_pins.dat_a_p)
 		
-		adc = ActorNode(ADC(adc_pins))
-		buf = ActorNode(Buffer)
-		wc = ActorNode(Collector(adc.actor.token("samples").layout()))
+		adc = ADC(adc_pins)
+		buf = AbstractActor(Buffer)
+		wc = Collector(adc.token("samples").layout())
 		
-		baseapp.csrs.request("wc", UID_WAVEFORM_COLLECTOR, *wc.actor.get_registers())
+		baseapp.csrs.request("wc", UID_WAVEFORM_COLLECTOR, *wc.get_registers())
 		
 		g = DataFlowGraph()
 		g.add_connection(adc, buf)

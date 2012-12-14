@@ -12,7 +12,7 @@ def main():
 	parser.add_argument("-p", "--platform", default="rhino")
 	parser.add_argument("applications", nargs="+")
 	args = parser.parse_args()
-	search_dirs = list(reversed(args.extension_dir))
+	search_dirs = list(map(os.path.abspath, reversed(args.extension_dir)))
 	platform = args.platform
 	apps = args.applications
 
@@ -31,6 +31,8 @@ def main():
 			raise IOError("Could not find application " + build_name)
 		build_dir = os.path.join(application_dir, "build")
 		output_dir = os.path.join(application_dir, "output")
+		tools.mkdir_noerror(build_dir)
+		tools.mkdir_noerror(output_dir)
 		sys.path.insert(0, root_dir)
 		
 		# Build application and generate sources
@@ -49,6 +51,7 @@ def main():
 		application_hdl += library_hdl
 	
 		# Synthesize project
+		orig_dir = os.getcwd()
 		os.chdir(os.path.join(application_dir, "build"))
 		bitstream = builder_module.build(platform_module.TARGET_DEVICE,
 			application_hdl,

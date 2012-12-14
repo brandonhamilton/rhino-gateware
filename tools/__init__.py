@@ -16,6 +16,12 @@ def find_dir(search_dirs, path):
 			return search_dir, full_dir
 	return None
 
+def mkdir_noerror(d):
+	try:
+		os.mkdir(d)
+	except OSError:
+		pass
+
 # Save a string to a file
 def write_to_file(filename, contents):
 	f = open(filename, "w")

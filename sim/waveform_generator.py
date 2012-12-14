@@ -5,8 +5,9 @@ import matplotlib.pyplot as plt
 from migen.bus.transactions import *
 from migen.bus import csr
 from migen.bank import csrgen
-from migen.actorlib.sim import *
+from migen.flow.transactions import *
 from migen.flow.network import *
+from migen.actorlib.sim import *
 from migen.sim.generic import Simulator
 from migen.sim.icarus import Runner
 

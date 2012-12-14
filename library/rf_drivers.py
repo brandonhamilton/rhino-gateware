@@ -203,7 +203,7 @@ class RFMDISMMDriver(Actor):
 		super().__init__(("program", Sink, [("addr", 7), ("data", 16)]))
 	
 	def get_registers(self):
-		return [self._bb_enable, self._bb_out, self._bb_in] + self._sdw.get_registers()
+		return [self._bb_enable, self._bb_out, self._bb_din] + self._sdw.get_registers()
 	
 	def get_fragment(self):
 		# ENX

@@ -221,6 +221,12 @@ class RFMDISMMDriver(Actor):
 		]
 		
 		# bitbang
+		sdatao_r1 = Signal()
+		sdatao_r2 = Signal()
+		sync += [
+			sdatao_r1.eq(self.sdatao),
+			sdatao_r2.eq(sdatao_r1)
+		]
 		comb = [
 			If(self._bb_enable.field.r,
 				self.sdata.eq(self._bb_sdata.r),
@@ -230,7 +236,8 @@ class RFMDISMMDriver(Actor):
 				self.sdata.eq(self._sdw.d),
 				self.sclk.eq(self._sdw.clk),
 				self.enx.eq(enx)
-			)
+			),
+			self._bb_din.field.w.eq(sdatao_r2)
 		]
 		
 		# parallel data interface

@@ -179,95 +179,107 @@ class PE43602Driver(Actor):
 		
 		return Fragment(comb, sync) + self._sdw.get_fragment()
 
-# RFMD's second-generation integrated synthesizer/mixer products, e.g.
-# RFMD2081 IQ Modulator with Synthesizer/VCO
-# RFFC5071 Wideband Synthesizer/VCO with Integrated Mixer
-class RFMDISMMDriver(Actor):
-	def __init__(self, cycle_bits=8):
-		self._sdw = SerialDataWriter(cycle_bits, 25, ["ENX_HI"])
-		self._sdw.end_action = [self._sdw.fsm.next_state(self._sdw.fsm.ENX_HI)]
+class SPIWriter:
+	def __init__(self, cycle_bits, data_bits):
+		self.sdw = SerialDataWriter(cycle_bits, data_bits, ["CSN_HI"])
+		self.sdw.end_action = [self.sdw.fsm.next_state(self.sdw.fsm.CSN_HI)]
 		
-		self.sdata = Signal()
-		self.sclk = Signal()
-		self.enx = Signal()
-		self.sdatao = Signal()
+		self.mosi = Signal()
+		self.miso = Signal()
+		self.csn = Signal(reset=1)
+		self.clk = Signal()
+		
+		self.spi_busy = Signal()
+		self.miso_synced = Signal()
 		
 		# bitbang control
 		self._bb_enable = RegisterField("bb_enable")
-		self._bb_sdata = Field("sdata")
-		self._bb_sclk = Field("sclk")
-		self._bb_enx = Field("enx")
-		self._bb_out = RegisterFields("bb_out", [self._bb_sdata, self._bb_enx, self._bb_sclk])
-		self._bb_din = RegisterField("bb_din", access_dev=WRITE_ONLY, access_bus=READ_ONLY)
+		self._bb_mosi = Field("mosi")
+		self._bb_clk = Field("clk")
+		self._bb_csn = Field("csn", reset=1)
+		self._bb_out = RegisterFields("bb_out", [self._bb_mosi, self._bb_csn, self._bb_clk])
+		self._bb_miso = RegisterField("bb_miso", access_dev=WRITE_ONLY, access_bus=READ_ONLY)
 		
-		Actor.__init__(self, ("program", Sink, [("addr", 7), ("data", 16)]))
-	
 	def get_registers(self):
-		return [self._bb_enable, self._bb_out, self._bb_din] + self._sdw.get_registers()
+		return [self._bb_enable, self._bb_out, self._bb_miso] + self.sdw.get_registers()
 	
 	def get_fragment(self):
-		# ENX
-		enx = Signal(reset=1)
-		enx_p = Signal()
-		enx_high = Signal()
-		enx_low = Signal()
+		# CS_N
+		csn = Signal()
+		csn_p = Signal()
+		csn_high = Signal()
+		csn_low = Signal()
 		sync = [
-			If(enx_high,
-				enx_p.eq(1)
-			).Elif(enx_low,
-				enx_p.eq(0)
+			If(csn_high,
+				csn_p.eq(1)
+			).Elif(csn_low,
+				csn_p.eq(0)
 			),
-			enx.eq(enx_p)
+			csn.eq(csn_p)
 		]
 		
 		# bitbang
-		sdatao_r1 = Signal()
-		sdatao_r2 = Signal()
+		miso_r1 = Signal()
 		sync += [
-			sdatao_r1.eq(self.sdatao),
-			sdatao_r2.eq(sdatao_r1)
+			miso_r1.eq(self.miso),
+			self.miso_synced.eq(miso_r1)
 		]
 		comb = [
 			If(self._bb_enable.field.r,
-				self.sdata.eq(self._bb_sdata.r),
-				self.sclk.eq(self._bb_sclk.r),
-				self.enx.eq(self._bb_enx.r)
+				self.mosi.eq(self._bb_mosi.r),
+				self.clk.eq(self._bb_clk.r),
+				self.csn.eq(self._bb_csn.r)
 			).Else(
-				self.sdata.eq(self._sdw.d),
-				self.sclk.eq(self._sdw.clk),
-				self.enx.eq(enx)
+				self.mosi.eq(self.sdw.d),
+				self.clk.eq(self.sdw.clk),
+				self.csn.eq(csn)
 			),
-			self._bb_din.field.w.eq(sdatao_r2)
-		]
-		
-		# parallel data interface
-		word = Signal(25)
-		comb += [
-			self._sdw.pds.eq(self.endpoints["program"].stb),
-			word.eq(Cat(self.token("program").data, self.token("program").addr)),
-			self._sdw.pdi.eq(bitreverse(word))
+			self._bb_miso.field.w.eq(self.miso_synced)
 		]
 		
 		# complete FSM
-		fsm = self._sdw.fsm
-		fsm.act(fsm.WAIT_DATA,
-			self.endpoints["program"].ack.eq(1)
-		)
+		fsm = self.sdw.fsm
 		fsm.act(fsm.TRANSFER_DATA,
-			If(self._sdw.ev_data,
+			If(self.sdw.ev_data,
 				# ENX shares the data timing
-				enx_low.eq(1)
+				csn_low.eq(1)
 			),
-			self.busy.eq(1)
+			self.spi_busy.eq(1)
 		)
-		fsm.act(fsm.ENX_HI,
-			If(self._sdw.ev_data,
-				enx_high.eq(1)
+		fsm.act(fsm.CSN_HI,
+			If(self.sdw.ev_data,
+				csn_high.eq(1)
 			),
-			If(self._sdw.eoc,
+			If(self.sdw.eoc,
 				fsm.next_state(fsm.WAIT_DATA)
 			),
-			self.busy.eq(1)
+			self.spi_busy.eq(1)
 		)
 		
-		return Fragment(comb, sync) + self._sdw.get_fragment()
+		return Fragment(comb, sync) + self.sdw.get_fragment()
+
+		
+# RFMD's second-generation integrated synthesizer/mixer/modulator devices, e.g.
+# RFMD2081 IQ Modulator with Synthesizer/VCO
+# RFFC5071 Wideband Synthesizer/VCO with Integrated Mixer
+class RFMDISMMDriver(SPIWriter, Actor):
+	def __init__(self, cycle_bits=8):
+		SPIWriter.__init__(self, cycle_bits, 25)
+		Actor.__init__(self, ("program", Sink, [("addr", 7), ("data", 16)]))
+	
+	def get_fragment(self):
+		# parallel data interface
+		word = Signal(25)
+		comb = [
+			self.sdw.pds.eq(self.endpoints["program"].stb),
+			word.eq(Cat(self.token("program").data, self.token("program").addr)),
+			self.sdw.pdi.eq(bitreverse(word)),
+			
+			self.busy.eq(self.spi_busy)
+		]
+		
+		self.sdw.fsm.act(self.sdw.fsm.WAIT_DATA,
+			self.endpoints["program"].ack.eq(1)
+		)
+
+		return SPIWriter.get_fragment(self) + Fragment(comb)

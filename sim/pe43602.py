@@ -9,11 +9,11 @@ from library.rf_drivers import *
 class DataGen(SimActor):
 	def __init__(self):
 		def data_gen():
-			yield Token("attn", {"attn": 0b11010010})
-			for i in range(7):
+			yield Token("attn", {"attn": 0b101001})
+			for i in range(6):
 				yield Token("attn", {"attn": 1 << i})
 		SimActor.__init__(self, data_gen(),
-			("attn", Source, [("attn", 8)]))
+			("attn", Source, [("attn", 6)]))
 
 def main():
 	g = DataFlowGraph()

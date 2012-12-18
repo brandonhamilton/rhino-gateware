@@ -116,7 +116,7 @@ class PE43602Driver(Actor):
 		self._pos_le_high = RegisterField("pos_le_high", self._sdw.cycle_bits, reset=5)
 		self._pos_le_low = RegisterField("pos_le_low", self._sdw.cycle_bits, reset=15)
 		
-		Actor.__init__(self, ("program", Sink, [("attn", 8)]))
+		Actor.__init__(self, ("program", Sink, [("attn", 6)]))
 	
 	def get_registers(self):
 		return self._sdw.get_registers() + [self._pos_le_high, self._pos_le_low]
@@ -124,7 +124,7 @@ class PE43602Driver(Actor):
 	def get_fragment(self):
 		comb = [
 			self._sdw.pds.eq(self.endpoints["program"].stb),
-			self._sdw.pdi.eq(self.token("program").attn)
+			self._sdw.pdi.eq(Cat(0, self.token("program").attn))
 		]
 		
 		# LE counter
@@ -284,13 +284,17 @@ class RFMDISMMDriver(SPIWriter, Actor):
 class LMH6521(SPIWriter, Actor):
 	def __init__(self, cycle_bits=8):
 		SPIWriter.__init__(self, cycle_bits, 16)
-		Actor.__init__(self, ("program", Sink, [("channel", 1), ("gain", 8)]))
+		Actor.__init__(self, ("program", Sink, [("channel", 1), ("gain", 6)]))
 	
 	def get_fragment(self):
 		word = Signal(16)
 		comb = [
 			self.sdw.pds.eq(self.endpoints["program"].stb),
-			word.eq(Cat(self.token("program").gain, self.token("program").channel)),
+			word.eq(Cat(
+				0,
+				self.token("program").gain,
+				1,
+				self.token("program").channel)),
 			self.sdw.pdi.eq(bitreverse(word)),
 			self.busy.eq(self.spi_busy)
 		]

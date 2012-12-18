@@ -116,7 +116,7 @@ class PE43602Driver(Actor):
 		self._pos_le_high = RegisterField("pos_le_high", self._sdw.cycle_bits, reset=5)
 		self._pos_le_low = RegisterField("pos_le_low", self._sdw.cycle_bits, reset=15)
 		
-		super().__init__(("program", Sink, [("attn", 8)]))
+		Actor.__init__(self, ("program", Sink, [("attn", 8)]))
 	
 	def get_registers(self):
 		return self._sdw.get_registers() + [self._pos_le_high, self._pos_le_low]
@@ -200,7 +200,7 @@ class RFMDISMMDriver(Actor):
 		self._bb_out = RegisterFields("bb_out", [self._bb_sdata, self._bb_enx, self._bb_sclk])
 		self._bb_din = RegisterField("bb_din", access_dev=WRITE_ONLY, access_bus=READ_ONLY)
 		
-		super().__init__(("program", Sink, [("addr", 7), ("data", 16)]))
+		Actor.__init__(self, ("program", Sink, [("addr", 7), ("data", 16)]))
 	
 	def get_registers(self):
 		return [self._bb_enable, self._bb_out, self._bb_din] + self._sdw.get_registers()

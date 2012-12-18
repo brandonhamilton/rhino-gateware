@@ -21,7 +21,7 @@ class WaveformGenerator(Actor):
 		self._shift_data = RegisterRaw("shift_data")
 		
 		layout = [("value" + str(i), self.width) for i in range(self.spc)]
-		super().__init__(("sample", Source, layout))
+		Actor.__init__(self, ("sample", Source, layout))
 
 	def get_registers(self):
 		return [self._mode, self._busy,

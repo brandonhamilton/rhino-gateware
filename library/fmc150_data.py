@@ -165,7 +165,7 @@ class _BaseDAC(Actor):
 				("q", width)
 			]
 		
-		super().__init__(("samples", Sink, layout))
+		Actor.__init__(self, ("samples", Sink, layout))
 	
 	def get_registers(self):
 		return [self._test_pattern_en,
@@ -175,7 +175,7 @@ class _BaseDAC(Actor):
 
 class DAC(_BaseDAC):
 	def __init__(self, pins, serdesstrobe):
-		super().__init__(pins, serdesstrobe, False)
+		_BaseDAC.__init__(self, pins, serdesstrobe, False)
 	
 	def get_fragment(self):
 		dw = len(self._pins.dat_p)
@@ -235,7 +235,7 @@ class DAC(_BaseDAC):
 
 class DAC2X(_BaseDAC):
 	def __init__(self, pins, serdesstrobe):
-		super().__init__(pins, serdesstrobe, True)
+		_BaseDAC.__init__(self, pins, serdesstrobe, True)
 	
 	def get_fragment(self):
 		dw = len(self._pins.dat_p)
@@ -301,7 +301,7 @@ class ADC(Actor):
 		self._pins = pins
 		
 		width = 2*len(self._pins.dat_a_p)
-		super().__init__(("samples", Source, [
+		Actor.__init__(self, ("samples", Source, [
 			("a", width),
 			("b", width)
 		]))

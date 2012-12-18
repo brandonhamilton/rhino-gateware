@@ -12,7 +12,7 @@ class DataGen(SimActor):
 			yield Token("ismm", {"addr": 0b1010010, "data": 0})
 			for i in range(16):
 				yield Token("ismm", {"addr": 0b1010101, "data": 1 << i})
-		super().__init__(data_gen(),
+		SimActor.__init__(self, data_gen(),
 			("ismm", Source, [("addr", 7), ("data", 16)]))
 
 def main():

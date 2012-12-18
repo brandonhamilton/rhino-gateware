@@ -28,10 +28,10 @@ class FMC150Controller(GPIO):
 			(fc.mon_reset_n,	OUTPUT,	"mon_reset_n")
 		]
 		self.fmc150_ctrl = fc
-		super().__init__(baseapp, csr_name, UID_FMC150_CTRL, signals)
+		GPIO.__init__(self, baseapp, csr_name, UID_FMC150_CTRL, signals)
 
 	def get_fragment(self):
 		comb = [
 			self.fmc150_ctrl.pg_c2m.eq(1)
 		]
-		return super().get_fragment() + Fragment(comb)
+		return GPIO.get_fragment(self) + Fragment(comb)

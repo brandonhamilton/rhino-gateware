@@ -12,7 +12,7 @@ class DataGen(SimActor):
 			yield Token("attn", {"attn": 0b11010010})
 			for i in range(7):
 				yield Token("attn", {"attn": 1 << i})
-		super().__init__(data_gen(),
+		SimActor.__init__(self, data_gen(),
 			("attn", Source, [("attn", 8)]))
 
 def main():

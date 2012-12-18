@@ -17,11 +17,11 @@ from library.waveform_generator import WaveformGenerator
 # This derived class implements it on a CSR bus.
 class CSRWG(WaveformGenerator):
 	def __init__(self, address, depth, width, spc):
-		super().__init__(depth, width, spc)
+		WaveformGenerator.__init__(self, depth, width, spc)
 		self.bank = csrgen.Bank(self.get_registers(), address)
 	
 	def get_fragment(self):
-		return super().get_fragment() + self.bank.get_fragment()
+		return WaveformGenerator.get_fragment(self) + self.bank.get_fragment()
 
 width = 16
 depth = 512

@@ -31,7 +31,7 @@ class FullWaveformGenerator(CompositeActor):
 		else:
 			g.add_connection(wg_i, dac, sink_subr=["i"])
 			g.add_connection(wg_q, dac, sink_subr=["q"])
-		super().__init__(g)
+		CompositeActor.__init__(self, g)
 
 class FullWaveformCollector(CompositeActor):
 	def __init__(self, baseapp):
@@ -47,4 +47,4 @@ class FullWaveformCollector(CompositeActor):
 		g = DataFlowGraph()
 		g.add_connection(adc, buf)
 		g.add_connection(buf, wc)
-		super().__init__(g)
+		CompositeActor.__init__(self, g)

@@ -268,18 +268,33 @@ class RFMDISMMDriver(SPIWriter, Actor):
 		Actor.__init__(self, ("program", Sink, [("addr", 7), ("data", 16)]))
 	
 	def get_fragment(self):
-		# parallel data interface
 		word = Signal(25)
 		comb = [
 			self.sdw.pds.eq(self.endpoints["program"].stb),
 			word.eq(Cat(self.token("program").data, self.token("program").addr)),
 			self.sdw.pdi.eq(bitreverse(word)),
-			
 			self.busy.eq(self.spi_busy)
 		]
-		
 		self.sdw.fsm.act(self.sdw.fsm.WAIT_DATA,
 			self.endpoints["program"].ack.eq(1)
 		)
+		return SPIWriter.get_fragment(self) + Fragment(comb)
 
+# Dual variable gain amplifier
+class LMH6521(SPIWriter, Actor):
+	def __init__(self, cycle_bits=8):
+		SPIWriter.__init__(self, cycle_bits, 16)
+		Actor.__init__(self, ("program", Sink, [("channel", 1), ("gain", 8)]))
+	
+	def get_fragment(self):
+		word = Signal(16)
+		comb = [
+			self.sdw.pds.eq(self.endpoints["program"].stb),
+			word.eq(Cat(self.token("program").gain, self.token("program").channel)),
+			self.sdw.pdi.eq(bitreverse(word)),
+			self.busy.eq(self.spi_busy)
+		]
+		self.sdw.fsm.act(self.sdw.fsm.WAIT_DATA,
+			self.endpoints["program"].ack.eq(1)
+		)
 		return SPIWriter.get_fragment(self) + Fragment(comb)

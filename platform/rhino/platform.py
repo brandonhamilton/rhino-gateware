@@ -99,6 +99,7 @@ PLATFORM_RESOURCES = [
 	("fmc150_ext_trigger", 0, Pins("U26")),
 	
 	# Vermeer radar testbed
+	# TX path
 	("pe43602", 0,
 		Subsignal("d", Pins("H8")),
 		Subsignal("clk", Pins("B3")),
@@ -112,6 +113,28 @@ PLATFORM_RESOURCES = [
 		Subsignal("sdatao", Pins("E6")),
 		IOStandard("LVCMOS33")
 	),
+	# RX path
+	("lmh6521", 0,
+		Subsignal("scsb", Pins("C5")),
+		Subsignal("sclk", Pins("G10")),
+		Subsignal("sdi", Pins("D5")),
+		Subsignal("sdo", Pins("F9")),
+		IOStandard("LVCMOS33")
+	),
+	("lmh6521", 1,
+		Subsignal("scsb", Pins("E10")),
+		Subsignal("sclk", Pins("A4")),
+		Subsignal("sdi", Pins("B4")),
+		Subsignal("sdo", Pins("H10")),
+		IOStandard("LVCMOS33")
+	),
+	("rffc5071", 0,
+		Subsignal("enx", Pins("A2")),
+		Subsignal("sclk", Pins("G9")),
+		Subsignal("sdata", Pins("H9")),
+		Subsignal("sdatao", Pins("A3")),
+		IOStandard("LVCMOS33")
+	)
 ]
 
 CSR_BASE = 0x08000000

@@ -17,6 +17,9 @@ class SerialDataWriter:
 		self.pds = Signal()
 		self.pdi = Signal(self.data_bits)
 		
+		self.clk_high = Signal()
+		self.clk_low = Signal()
+		
 		self.eoc = Signal()
 		self.ev_clk_high = Signal()
 		self.ev_clk_low = Signal()
@@ -73,12 +76,10 @@ class SerialDataWriter:
 		
 		# clock
 		clk_p = Signal()
-		clk_high = Signal()
-		clk_low = Signal()
 		sync += [
-			If(clk_high,
+			If(self.clk_high,
 				clk_p.eq(1)
-			).Elif(clk_low,
+			).Elif(self.clk_low,
 				clk_p.eq(0)
 			),
 			self.clk.eq(clk_p)
@@ -93,8 +94,8 @@ class SerialDataWriter:
 			)
 		)
 		self.fsm.act(self.fsm.TRANSFER_DATA,
-			clk_high.eq(self.ev_clk_high),
-			clk_low.eq(self.ev_clk_low),
+			self.clk_high.eq(self.ev_clk_high),
+			self.clk_low.eq(self.ev_clk_low),
 			sr_shift.eq(self.ev_data),
 			If(self.eoc & (remaining_data == 0),
 				*self.end_action
@@ -181,8 +182,8 @@ class PE43602Driver(Actor):
 
 class SPIWriter:
 	def __init__(self, cycle_bits, data_bits):
-		self.sdw = SerialDataWriter(cycle_bits, data_bits, ["CSN_HI"])
-		self.sdw.end_action = [self.sdw.fsm.next_state(self.sdw.fsm.CSN_HI)]
+		self.sdw = SerialDataWriter(cycle_bits, data_bits, ["CSN_HI0", "CSN_HI1"])
+		self.sdw.end_action = [self.sdw.fsm.next_state(self.sdw.fsm.CSN_HI0)]
 		
 		self.mosi = Signal()
 		self.miso = Signal()
@@ -246,10 +247,20 @@ class SPIWriter:
 			),
 			self.spi_busy.eq(1)
 		)
-		fsm.act(fsm.CSN_HI,
+		fsm.act(fsm.CSN_HI0,
+			self.sdw.clk_high.eq(self.sdw.ev_clk_high),
+			self.sdw.clk_low.eq(self.sdw.ev_clk_low),
 			If(self.sdw.ev_data,
 				csn_high.eq(1)
 			),
+			If(self.sdw.eoc,
+				fsm.next_state(fsm.CSN_HI1)
+			),
+			self.spi_busy.eq(1)
+		)
+		fsm.act(fsm.CSN_HI1,
+			self.sdw.clk_high.eq(self.sdw.ev_clk_high),
+			self.sdw.clk_low.eq(self.sdw.ev_clk_low),
 			If(self.sdw.eoc,
 				fsm.next_state(fsm.WAIT_DATA)
 			),

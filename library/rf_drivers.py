@@ -28,6 +28,7 @@ class SerialDataWriter:
 		# FSM
 		fsm_states = ["WAIT_DATA", "TRANSFER_DATA"] + extra_fsm_states
 		self.fsm = FSM(*fsm_states)
+		self.start_action = [self.fsm.next_state(self.fsm.TRANSFER_DATA)]
 		self.end_action = [self.fsm.next_state(self.fsm.WAIT_DATA)]
 		
 		# registers
@@ -90,7 +91,7 @@ class SerialDataWriter:
 			cycle_counter_reset.eq(1),
 			sr_load.eq(1),
 			If(self.pds,
-				self.fsm.next_state(self.fsm.TRANSFER_DATA)
+				*self.start_action
 			)
 		)
 		self.fsm.act(self.fsm.TRANSFER_DATA,
@@ -182,8 +183,9 @@ class PE43602Driver(Actor):
 
 class SPIWriter:
 	def __init__(self, cycle_bits, data_bits):
-		self.sdw = SerialDataWriter(cycle_bits, data_bits, ["CSN_HI0", "CSN_HI1"])
-		self.sdw.end_action = [self.sdw.fsm.next_state(self.sdw.fsm.CSN_HI0)]
+		self.sdw = SerialDataWriter(cycle_bits, data_bits, ["FIRSTCLK", "CSN_HI"])
+		self.sdw.start_action = [self.sdw.fsm.next_state(self.sdw.fsm.FIRSTCLK)]
+		self.sdw.end_action = [self.sdw.fsm.next_state(self.sdw.fsm.CSN_HI)]
 		
 		self.mosi = Signal()
 		self.miso = Signal()
@@ -206,8 +208,8 @@ class SPIWriter:
 	
 	def get_fragment(self):
 		# CS_N
-		csn = Signal()
-		csn_p = Signal()
+		csn = Signal(reset=1)
+		csn_p = Signal(reset=1)
 		csn_high = Signal()
 		csn_low = Signal()
 		sync = [
@@ -240,6 +242,14 @@ class SPIWriter:
 		
 		# complete FSM
 		fsm = self.sdw.fsm
+		fsm.act(fsm.FIRSTCLK,
+			self.sdw.clk_high.eq(self.sdw.ev_clk_high),
+			self.sdw.clk_low.eq(self.sdw.ev_clk_low),
+			If(self.sdw.eoc,
+				fsm.next_state(fsm.TRANSFER_DATA)
+			),
+			self.spi_busy.eq(1)
+		)
 		fsm.act(fsm.TRANSFER_DATA,
 			If(self.sdw.ev_data,
 				# ENX shares the data timing
@@ -247,20 +257,12 @@ class SPIWriter:
 			),
 			self.spi_busy.eq(1)
 		)
-		fsm.act(fsm.CSN_HI0,
+		fsm.act(fsm.CSN_HI,
 			self.sdw.clk_high.eq(self.sdw.ev_clk_high),
 			self.sdw.clk_low.eq(self.sdw.ev_clk_low),
 			If(self.sdw.ev_data,
 				csn_high.eq(1)
 			),
-			If(self.sdw.eoc,
-				fsm.next_state(fsm.CSN_HI1)
-			),
-			self.spi_busy.eq(1)
-		)
-		fsm.act(fsm.CSN_HI1,
-			self.sdw.clk_high.eq(self.sdw.ev_clk_high),
-			self.sdw.clk_low.eq(self.sdw.ev_clk_low),
 			If(self.sdw.eoc,
 				fsm.next_state(fsm.WAIT_DATA)
 			),

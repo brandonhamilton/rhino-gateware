@@ -5,11 +5,11 @@ from migen.bank.description import regprefix
 
 from library.uid import UID_WAVEFORM_GENERATOR, UID_WAVEFORM_COLLECTOR
 from library.waveform_generator import WaveformGenerator
-from library.fmc150_data import DAC, DAC2X, ADC
+from library.ti_data import DAC, DAC2X, ADC
 
 class FullWaveformGenerator(CompositeActor):
 	def __init__(self, baseapp, double_dac):
-		dac_pins = baseapp.constraints.request("fmc150_dac")
+		dac_pins = baseapp.constraints.request("ti_dac")
 		width = 2*len(dac_pins.dat_p)
 		
 		spc = 2 if double_dac else 1
@@ -35,7 +35,7 @@ class FullWaveformGenerator(CompositeActor):
 
 class FullWaveformCollector(CompositeActor):
 	def __init__(self, baseapp):
-		adc_pins = baseapp.constraints.request("fmc150_adc")
+		adc_pins = baseapp.constraints.request("ti_adc")
 		width = 2*len(adc_pins.dat_a_p)
 		
 		adc = ADC(adc_pins)

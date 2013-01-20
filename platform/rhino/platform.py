@@ -1,5 +1,6 @@
 from tools.cmgr import *
 from library.baseapp import GenericBaseApp
+from library.crg import CRGFMC150
 
 TARGET_VENDOR = "xilinx"
 TARGET_DEVICE = "xc6slx150t-fgg676-3"
@@ -130,4 +131,6 @@ PLATFORM_RESOURCES = [
 
 class BaseApp(GenericBaseApp):
 	def __init__(self, components):
-		GenericBaseApp.__init__(self, components, PLATFORM_RESOURCES)
+		self.double_dac = True
+		GenericBaseApp.__init__(self, components, PLATFORM_RESOURCES,
+			lambda app: CRGFMC150(app, double_dac=self.double_dac))

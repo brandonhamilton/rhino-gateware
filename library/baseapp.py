@@ -14,28 +14,25 @@ DMA_BASE = 0x10000000
 DMA_PORT_RANGE = 8192
 
 class GenericBaseApp:
-	def __init__(self, components, platform_resources):
+	def __init__(self, components, platform_resources, crg_factory=lambda app: CRG100(app)):
 		self.platform_resources = platform_resources
 		
 		self.constraints = ConstraintManager(self.platform_resources)
 		self.csrs = CSRManager()
 		self.streams = StreamManager(16)
 		
-		self.crg = None
 		self.components_inst = []
+		
+		# clock and reset generator
+		self.crg = crg_factory(self)
+		self.components_inst.append(self.crg)
+		
 		for c in components:
 			if isinstance(c, tuple):
 				inst = c[0](self, **c[1])
 			else:
 				inst = c(self)
 			self.components_inst.append(inst)
-			if isinstance(inst, CRG):
-				self.crg = inst
-
-		# default clock and reset generator
-		if self.crg is None:
-			self.crg = CRG100(self)
-			self.components_inst.append(self.crg)
 	
 	def get_fragment(self):
 		streams_from = self.streams.get_ports(FROM_EXT)

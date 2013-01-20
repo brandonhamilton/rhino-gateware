@@ -8,12 +8,12 @@ from library.waveform_generator import WaveformGenerator
 from library.ti_data import DAC, DAC2X, ADC
 
 class FullWaveformGenerator(CompositeActor):
-	def __init__(self, baseapp, double_dac):
+	def __init__(self, baseapp):
 		dac_pins = baseapp.constraints.request("ti_dac")
 		width = 2*len(dac_pins.dat_p)
 		
-		spc = 2 if double_dac else 1
-		dac_class = DAC2X if double_dac else DAC
+		spc = 2 if baseapp.double_dac else 1
+		dac_class = DAC2X if baseapp.double_dac else DAC
 		
 		wg_i = WaveformGenerator(1024, width, spc)
 		wg_q = WaveformGenerator(1024, width, spc)
@@ -25,7 +25,7 @@ class FullWaveformGenerator(CompositeActor):
 		baseapp.csrs.request("wg", UID_WAVEFORM_GENERATOR, *registers)
 		
 		g = DataFlowGraph()
-		if double_dac:
+		if baseapp.double_dac:
 			g.add_connection(wg_i, dac, sink_subr=["i0", "i1"])
 			g.add_connection(wg_q, dac, sink_subr=["q0", "q1"])
 		else:

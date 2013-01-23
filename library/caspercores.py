@@ -14,7 +14,8 @@ class CasperCore:
 	
 	def get_fragment(self):
 		module = Instance(self.module_name,
-			Instance.Parameter("C_BASEADDR"
+			Instance.Parameter("C_BASEADDR", self.base_addr),
+			Instance.Parameter("C_HIGHADDR", self.base_addr + self.aperture - 1),
 		
 			Instance.ClockPort("OPB_Clk", domain="opb"),
 			Instance.ResetPort("OPB_Rst", domain="opb"),

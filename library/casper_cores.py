@@ -3,17 +3,16 @@ from migen.fhdl.structure import *
 from library import opb
 
 class CasperCore:
-	aperture = 0x10000
-	
-	def __init__(self, module_name, base_addr, *extra_signals):
+	def __init__(self, module_name, base_addr, aperture, *extra_signals):
 		self.module_name = module_name
 		self.base_addr = base_addr
+		self.aperture = aperture
 		self.extra_signals = extra_signals
 		
 		self.bus = opb.Interface()
 	
 	def get_fragment(self):
-		module = Instance(self.module_name,
+		inst = Instance(self.module_name,
 			Instance.Parameter("C_BASEADDR", self.base_addr),
 			Instance.Parameter("C_HIGHADDR", self.base_addr + self.aperture - 1),
 		
@@ -34,11 +33,10 @@ class CasperCore:
 			
 			*extra_signals
 		)
-		return Fragment(instances=[module])
+		return Fragment(instances=[inst])
 
 class SoftwareRegister(CasperCore):
-	aperture = 4
-	def __init__(self, base_addr, high_addr):
+	def __init__(self, base_addr):
 		self.data_out = Signal(32)
-		CasperCore.__init__("opb_register_ppc2simulink", base_addr, high_addr,
+		CasperCore.__init__("opb_register_ppc2simulink", base_addr, 4,
 			Instance.Output("user_data_out", self.data_out))

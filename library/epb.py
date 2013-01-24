@@ -1,16 +1,12 @@
 from migen.fhdl.structure import *
 
 class EPB:
-	def __init__(self, epb_pins, reset_pin):
+	def __init__(self, epb_pins):
 		self._epb_pins = epb_pins
-		self._reset_pin = reset_pin
-		
 		self.opb = opb.Interface()
 	
 	def get_fragment(self):
 		inst = Instance("epb_opb_bridge",
-			Instance.Input("sys_reset", self._reset_pin),
-			
 			Instance.Input("epb_cs_n", self._epb_pins.cs_n),
 			Instance.Input("epb_oe_n", self._epb_pins.oe_n),
 			Instance.Input("epb_r_w_n", self._epb_pins.r_w_n),

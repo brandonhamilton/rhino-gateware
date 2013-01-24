@@ -17,9 +17,18 @@ PLATFORM_RESOURCES = [
 		Subsignal("data", Pins("AF15", "AE16", "AE21", "AD20", "AF16", "AE17", "AE19", "AD19", "AG22", "AH22", "AH12", "AG13",
 			"AH20", "AH19", "AH14", "AH13")),
 		Subsignal("rdy", Pins("K12")),
-		IOStandard("LVCMOS33")),
+		IOStandard("LVCMOS33")
+	),
 	("roach_clocks", 0,
 		Subsignal("epb_clk", Pins("AH18"), IOStandard("LVCMOS33")),
+		Subsignal("sys_clk_n", Pins("H13")),
+		Subsignal("sys_clk_p", Pins("J14")),
+		Subsignal("aux0_clk_p", Pins("G15")),
+		Subsignal("aux0_clk_n", Pins("G16")),
+		Subsignal("aux1_clk_p", Pins("H14")),
+		Subsignal("aux1_clk_n", Pins("H15")),
+		Subsignal("dly_clk_n", Pins("J17")),
+		Subsignal("dly_clk_p", Pins("J16")),
 	),
 ]
 

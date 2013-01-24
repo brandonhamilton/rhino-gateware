@@ -1,13 +1,11 @@
 module epb_opb_bridge(
     sys_reset,
 
-    epb_data_oe_n,
     epb_cs_n, epb_r_w_n, epb_be_n, 
     epb_oe_n,
     epb_addr, epb_addr_gp,
-    epb_data_i, epb_data_o,
+    epb_data,
     epb_rdy,
-    epb_rdy_oe,
 
     OPB_Clk,
     OPB_Rst,
@@ -28,15 +26,12 @@ module epb_opb_bridge(
   );
   input  sys_reset;
 
-  output epb_data_oe_n;
   input  epb_cs_n, epb_oe_n, epb_r_w_n;
   input   [1:0] epb_be_n;
   input  [22:0] epb_addr;
   input   [5:0] epb_addr_gp;
-  input  [15:0] epb_data_i;
-  output [15:0] epb_data_o;
+  inout  [15:0] epb_data;
   output epb_rdy;
-  output epb_rdy_oe;
 
   input  OPB_Clk, OPB_Rst;
   output M_request;
@@ -70,7 +65,7 @@ module epb_opb_bridge(
     epb_be_n_reg    <= epb_be_n;
     epb_addr_reg    <= epb_addr;
     epb_addr_gp_reg <= epb_addr_gp;
-    epb_data_i_reg  <= epb_data_i;
+    epb_data_i_reg  <= epb_data;
   end
   assign epb_cs_n_int = epb_cs_n;
 
@@ -92,8 +87,6 @@ module epb_opb_bridge(
   wire epb_trans_strb = (prev_cs_n && !epb_cs_n_reg);
   wire epb_trans      = !epb_cs_n_reg;
   wire OPB_reply      = OPB_xferAck | OPB_errAck | OPB_timeout | OPB_retry;
-
-  assign epb_data_oe_n = (!epb_r_w_n_reg) | (!epb_trans) | epb_oe_n_reg; //0 when read = 1 and epb_tran = 1 and epb_oe_n = 0 else 1
 
   /***** OPB Output Assignments *****/
   assign M_request = 1'b1;
@@ -208,15 +201,19 @@ module epb_opb_bridge(
   end
 
   reg [15:0] epb_data_o;
-  reg epb_rdy;
+  reg epb_rdy_o;
 
   always @(negedge OPB_Clk) begin
     epb_data_o <= epb_data_o_reg;
-    epb_rdy <= epb_rdy_reg;
+    epb_rdy_o <= epb_rdy_reg;
   end
   //synthesis attribute IOB of epb_data_o is TRUE
-  //synthesis attribute IOB of epb_rdy is TRUE
+  //synthesis attribute IOB of epb_rdy_o is TRUE
 
-  assign epb_rdy_oe = !epb_cs_n_int;
+  /***** EPB Output Drivers *****/
+  wire epb_data_oe_n = (!epb_r_w_n_reg) | (!epb_trans) | epb_oe_n_reg; //0 when read = 1 and epb_tran = 1 and epb_oe_n = 0 else 1
+
+  assign epb_data = epb_data_oe_n ? 16'bz : epb_data_o;
+  assign epb_rdy = epb_cs_n_int ? 1'bz : epb_rdy_o;
 
 endmodule

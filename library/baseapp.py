@@ -20,6 +20,28 @@ class Comp:
 		self.name = name
 
 class GenericBaseApp:
+	def __init__(self, components, platform_resources, crg_factory):
+		self.platform_resources = platform_resources
+		
+		self.constraints = ConstraintManager(self.platform_resources)
+		
+		self.components = dict()
+		self.all_components = []
+		
+		# clock and reset generator
+		self.crg = crg_factory(self)
+		self.all_components.append(self.crg)
+		
+		for c in components:
+			if not isinstance(c, Comp):
+				c = Comp(c)
+			self.current_comp_name = c.name
+			inst = c.comp_class(self, **c.comp_params)
+			del self.current_comp_name
+			if c.name is not None:
+				self.components[c.name] = inst
+			self.all_components.append(inst)
+	
 	def get_formatted_symtab(self):
 		symtab = self.get_symtab()
 		r = ""
@@ -40,26 +62,9 @@ class GenericBaseApp:
 
 class RhinoBaseApp(GenericBaseApp):
 	def __init__(self, components, platform_resources, crg_factory=lambda app: CRG100(app)):
-		self.platform_resources = platform_resources
-		
-		self.constraints = ConstraintManager(self.platform_resources)
 		self.csrs = CSRManager()
 		self.streams = StreamManager(16)
-		
-		self.components = dict()
-		self._all_components = []
-		
-		# clock and reset generator
-		self.crg = crg_factory(self)
-		self._all_components.append(self.crg)
-		
-		for c in components:
-			if not isinstance(c, Comp):
-				c = Comp(c)
-			inst = c.comp_class(self, **c.comp_params)
-			if c.name is not None:
-				self.components[c.name] = inst
-			self._all_components.append(inst)
+		GenericBaseApp.__init__(self, components, platform_resources, crg_factory)
 	
 	def get_fragment(self):
 		streams_from = self.streams.get_ports(FROM_EXT)
@@ -75,7 +80,7 @@ class RhinoBaseApp(GenericBaseApp):
 		
 		return self.csrs.get_fragment() + \
 			gpmc_bridge.get_fragment() + \
-			sum([c.get_fragment() for c in self._all_components], Fragment())
+			sum([c.get_fragment() for c in self.all_components], Fragment())
 	
 	def get_symtab(self):
 		return self.csrs.get_symtab(CSR_BASE) + \

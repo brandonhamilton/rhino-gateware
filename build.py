@@ -61,7 +61,7 @@ def main():
 
 		# Create BOF file
 		r = subprocess.call(["mkbof",
-			"-t", "5",
+			"-t", str(platform_module.MKBOF_HWRTYP),
 			"-s", os.path.join(build_dir, build_name + ".symtab"),
 			"-o", os.path.join(output_dir, build_name + ".bof"),
 			os.path.join(build_dir, build_name + ".bin")])

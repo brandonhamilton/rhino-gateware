@@ -4,7 +4,12 @@ from migen.bank.description import *
 from library.uid import UID_FMC150_CRG
 
 class CRG:
-	pass
+	def get_clock_domains(self):
+		r = dict()
+		for k, v in self.__dict__.items():
+			if isinstance(v, ClockDomain):
+				r[v.name] = v
+		return r
 
 class CRG100(CRG):
 	def __init__(self, baseapp):
@@ -34,9 +39,6 @@ TIMESPEC "TSclk_100" = PERIOD "GRPclk_100" 10 ns HIGH 50%;
 			Instance.Output("Q", self.cd.rst)
 		)
 		return Fragment(instances=[ibufg, reset_srl])
-
-	def get_clock_domains(self):
-		return {"sys": self.cd}
 
 # Clock generation for the FMC150
 # ADC samples at 122.88MHz
@@ -233,10 +235,3 @@ TIMESPEC "TSclk_adc" = PERIOD "GRPclk_adc" 8.13 ns HIGH 50%;
 			bufg_1x, bufg_dac, bufpll_dacio,
 			oddr2_dac, obufds_dac,
 			reset_srl])
-	
-	def get_clock_domains(self):
-		return {
-			"sys":   self.cd_sys,
-			"dac":   self.cd_dac,
-			"dacio": self.cd_dacio
-		}

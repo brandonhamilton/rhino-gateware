@@ -235,3 +235,82 @@ TIMESPEC "TSclk_adc" = PERIOD "GRPclk_adc" 8.13 ns HIGH 50%;
 			bufg_1x, bufg_dac, bufpll_dacio,
 			oddr2_dac, obufds_dac,
 			reset_srl])
+
+class CRGRoach(CRG):
+	def __init__(self, baseapp):
+		self.cd_sys = ClockDomain("sys")
+		self.cd_sys90 = ClockDomain("sys90")
+		self.cd_sys180 = ClockDomain("sys180")
+		self.cd_sys270 = ClockDomain("sys270")
+		
+		self.cd_sys2x = ClockDomain("sys2x")
+		self.cd_sys2x90 = ClockDomain("sys2x90")
+		self.cd_sys2x180 = ClockDomain("sys2x180")
+		self.cd_sys2x270 = ClockDomain("sys2x270")
+		
+		self.cd_dly = ClockDomain("dly")
+		self.cd_opb = ClockDomain("opb")
+		
+		self.cd_aux0 = ClockDomain("aux0")
+		self.cd_aux090 = ClockDomain("aux090")
+		self.cd_aux0180 = ClockDomain("aux0180")
+		self.cd_aux0270 = ClockDomain("aux0270")
+		
+		self.cd_aux02x = ClockDomain("aux02x")
+		self.cd_aux02x90 = ClockDomain("aux02x90")
+		self.cd_aux02x180 = ClockDomain("aux02x180")
+		self.cd_aux02x270 = ClockDomain("aux02x270")
+		
+		self.cd_aux1 = ClockDomain("aux1")
+		self.cd_aux190 = ClockDomain("aux190")
+		self.cd_aux1180 = ClockDomain("aux1180")
+		self.cd_aux1270 = ClockDomain("aux1270")
+		
+		self._roach_clocks = baseapp.constraints.request("roach_clocks")
+	
+	def get_fragment(self):
+		inst = Instance("roach_infrastructure",
+			Instance.Input("sys_clk_n", self._roach_clocks.sys_clk_n),
+			Instance.Input("sys_clk_p", self._roach_clocks.sys_clk_p),
+			
+			Instance.ClockPort("sys_clk", "sys"),
+			Instance.ClockPort("sys_clk90", "sys90"),
+			Instance.ClockPort("sys_clk180", "sys180"),
+			Instance.ClockPort("sys_clk270", "sys270"),
+			
+			Instance.ClockPort("sys_clk2x", "sys2x"),
+			Instance.ClockPort("sys_clk2x90", "sys2x90"),
+			Instance.ClockPort("sys_clk2x180", "sys2x180"),
+			Instance.ClockPort("sys_clk2x270", "sys2x270"),
+			
+			Instance.Input("dly_clk_n", self._roach_clocks.dly_clk_n),
+			Instance.Input("dly_clk_p", self._roach_clocks.dly_clk_p),
+			Instance.ClockPort("dly_clk", "dly"),
+    
+			Instance.Input("epb_clk_in", self._roach_clocks.epb_clk),
+			Instance.ClockPort("epb_clk", "opb"),
+    
+			Instance.Input("idelay_rst", 0),
+			
+			Instance.Input("aux0_clk_n", self._roach_clocks.aux0_clk_n),
+			Instance.Input("aux0_clk_p", self._roach_clocks.aux0_clk_p),
+			
+			Instance.ClockPort("aux0_clk", "aux0"),
+			Instance.ClockPort("aux0_clk90", "aux090"),
+			Instance.ClockPort("aux0_clk180", "aux0180"),
+			Instance.ClockPort("aux0_clk270", "aux0270"),
+			
+			Instance.ClockPort("aux0_clk2x", "aux02x"),
+			Instance.ClockPort("aux0_clk2x90", "aux02x90"),
+			Instance.ClockPort("aux0_clk2x180", "aux02x180"),
+			Instance.ClockPort("aux0_clk2x270", "aux02x270"),
+			
+			Instance.Input("aux1_clk_n", self._roach_clocks.aux1_clk_n),
+			Instance.Input("aux1_clk_p", self._roach_clocks.aux1_clk_p),
+			
+			Instance.ClockPort("aux1_clk", "aux1"),
+			Instance.ClockPort("aux1_clk90", "aux190"),
+			Instance.ClockPort("aux1_clk180", "aux1180"),
+			Instance.ClockPort("aux1_clk270", "aux1270"),
+		)
+		return Fragment(instances=[inst])

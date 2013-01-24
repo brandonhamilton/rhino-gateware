@@ -20,6 +20,25 @@ class Comp:
 		self.name = name
 
 class GenericBaseApp:
+	def get_formatted_symtab(self):
+		symtab = self.get_symtab()
+		r = ""
+		for s in symtab:
+			r += "{}\t{}\t0x{:08x}\t0x{:x}\n".format(*s)
+		return r
+		
+	def get_source(self):
+		f = self.get_fragment()
+		symtab = self.get_formatted_symtab()
+		vsrc, ns = verilog.convert(f,
+			self.constraints.get_io_signals(),
+			clock_domains=self.crg.get_clock_domains(),
+			return_ns=True)
+		sig_constraints = self.constraints.get_sig_constraints()
+		platform_commands = self.constraints.get_platform_commands()
+		return vsrc, ns, sig_constraints, platform_commands, symtab
+
+class RhinoBaseApp(GenericBaseApp):
 	def __init__(self, components, platform_resources, crg_factory=lambda app: CRG100(app)):
 		self.platform_resources = platform_resources
 		
@@ -61,21 +80,3 @@ class GenericBaseApp:
 	def get_symtab(self):
 		return self.csrs.get_symtab(CSR_BASE) + \
 			self.streams.get_symtab(DMA_BASE, DMA_PORT_RANGE)
-	
-	def get_formatted_symtab(self):
-		symtab = self.get_symtab()
-		r = ""
-		for s in symtab:
-			r += "{}\t{}\t0x{:08x}\t0x{:x}\n".format(*s)
-		return r
-	
-	def get_source(self):
-		f = self.get_fragment()
-		symtab = self.get_formatted_symtab()
-		vsrc, ns = verilog.convert(f,
-			self.constraints.get_io_signals(),
-			clock_domains=self.crg.get_clock_domains(),
-			return_ns=True)
-		sig_constraints = self.constraints.get_sig_constraints()
-		platform_commands = self.constraints.get_platform_commands()
-		return vsrc, ns, sig_constraints, platform_commands, symtab

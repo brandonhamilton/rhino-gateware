@@ -129,8 +129,8 @@ PLATFORM_RESOURCES = [
 	)
 ]
 
-class BaseApp(GenericBaseApp):
+class BaseApp(RhinoBaseApp):
 	def __init__(self, components):
 		self.double_dac = True
-		GenericBaseApp.__init__(self, components, PLATFORM_RESOURCES,
+		RhinoBaseApp.__init__(self, components, PLATFORM_RESOURCES,
 			lambda app: CRGFMC150(app, double_dac=self.double_dac))

@@ -3,6 +3,7 @@ from migen.bank.description import *
 from migen.bank import csrgen
 
 from library.uid import UID
+from library import opb
 
 BOF_PERM_READ = 0x01
 BOF_PERM_WRITE = 0x02
@@ -96,3 +97,32 @@ class StreamManager:
 				r.append((name, BOF_PERM_READ, base, port_range))
 				base += port_range
 		return r
+
+class OPBManager:
+	def __init__(self, baseapp, baseaddr):
+		self.baseapp = baseapp
+		self.next_address = baseaddr
+		self.slots = []
+	
+	def request(self, aperture, name=None):
+		if name is None:
+			name = self.baseapp.current_comp_name
+		if name is None:
+			raise ValueError("Anonymous components are not allowed on the OPB")
+		
+		address = self.next_address
+		self.next_address += aperture
+		bus = opb.Interface()
+		
+		self.slots.append((name, bus, address, aperture))
+		return bus, address
+		
+	def get_symtab(self):
+		r = []
+		for name, bus, address, aperture in self.slots:
+			r.append((name, BOF_PERM_READ|BOF_PERM_WRITE, address, aperture))
+		return r
+	
+	def get_fragment(self):
+		intercon = Interconnect(self.master, [slot[1] for slot in self.slots])
+		return intercon.get_fragment()

@@ -1,6 +1,5 @@
 from tools.cmgr import *
-from library.baseapp import GenericBaseApp
-from library.crg import CRGRoach
+from library.baseapp import RoachBaseApp
 
 TARGET_VENDOR = "xilinx"
 TARGET_DEVICE = "xc5vsx95t-ff1136-1"
@@ -32,7 +31,6 @@ PLATFORM_RESOURCES = [
 	),
 ]
 
-class BaseApp(GenericBaseApp):
+class BaseApp(RoachBaseApp):
 	def __init__(self, components):
-		GenericBaseApp.__init__(self, components, PLATFORM_RESOURCES,
-			lambda app: CRGRoach(app))
+		RoachBaseApp.__init__(self, components, PLATFORM_RESOURCES)

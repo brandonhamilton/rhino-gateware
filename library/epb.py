@@ -1,5 +1,7 @@
 from migen.fhdl.structure import *
 
+from library import opb
+
 class EPB:
 	def __init__(self, epb_pins):
 		self._epb_pins = epb_pins

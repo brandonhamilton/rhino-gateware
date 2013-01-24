@@ -124,5 +124,5 @@ class OPBManager:
 		return r
 	
 	def get_fragment(self):
-		intercon = Interconnect(self.master, [slot[1] for slot in self.slots])
+		intercon = opb.Interconnect(self.master, [slot[1] for slot in self.slots])
 		return intercon.get_fragment()

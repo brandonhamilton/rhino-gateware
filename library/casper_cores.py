@@ -18,7 +18,7 @@ class CasperCore:
 			Instance.Input("OPB_select", self.bus.select),
 			Instance.Input("OPB_RNW", self.bus.rnw),
 			Instance.Input("OPB_seqAddr", self.bus.seq_adr),
-			Instance.Output("Sl_xferAck" self.bus.xfer_ack),
+			Instance.Output("Sl_xferAck", self.bus.xfer_ack),
 			Instance.Output("Sl_errAck", self.bus.err_ack),
 			Instance.Output("Sl_retry", self.bus.retry),
 			Instance.Input("OPB_BE", self.bus.be),
@@ -27,12 +27,12 @@ class CasperCore:
 			
 			Instance.ClockPort("user_clk"),
 			
-			*extra_signals
+			*self.extra_signals
 		)
 		return Fragment(instances=[inst])
 
 class SoftwareRegister(CasperCore):
 	def __init__(self, baseapp):
 		self.data_out = Signal(32)
-		CasperCore.__init__("opb_register_ppc2simulink", baseapp, 4,
+		CasperCore.__init__(self, "opb_register_ppc2simulink", baseapp, 4,
 			Instance.Output("user_data_out", self.data_out))

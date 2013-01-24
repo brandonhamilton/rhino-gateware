@@ -96,7 +96,7 @@ class RoachBaseApp(GenericBaseApp):
 	
 	def get_fragment(self):
 		epb_bridge = EPB(self.constraints.request("epb"))
-		self.opb.master = epb.opb
+		self.opb.master = epb_bridge.opb
 		return self.opb.get_fragment() + \
 			epb_bridge.get_fragment() + \
 			sum([c.get_fragment() for c in self.all_components], Fragment())

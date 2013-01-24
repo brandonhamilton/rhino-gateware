@@ -13,6 +13,12 @@ CSR_BASE = 0x08000000
 DMA_BASE = 0x10000000
 DMA_PORT_RANGE = 8192
 
+class Comp:
+	def __init__(self, comp_class, name=None, **comp_params):
+		self.comp_class = comp_class
+		self.comp_params = comp_params
+		self.name = name
+
 class GenericBaseApp:
 	def __init__(self, components, platform_resources, crg_factory=lambda app: CRG100(app)):
 		self.platform_resources = platform_resources
@@ -21,18 +27,20 @@ class GenericBaseApp:
 		self.csrs = CSRManager()
 		self.streams = StreamManager(16)
 		
-		self.components_inst = []
+		self.components = dict()
+		self._all_components = []
 		
 		# clock and reset generator
 		self.crg = crg_factory(self)
-		self.components_inst.append(self.crg)
+		self._all_components.append(self.crg)
 		
 		for c in components:
-			if isinstance(c, tuple):
-				inst = c[0](self, **c[1])
-			else:
-				inst = c(self)
-			self.components_inst.append(inst)
+			if not isinstance(c, Comp):
+				c = Comp(c)
+			inst = c.comp_class(self, **c.comp_params)
+			if c.name is not None:
+				self.components[c.name] = inst
+			self._all_components.append(inst)
 	
 	def get_fragment(self):
 		streams_from = self.streams.get_ports(FROM_EXT)
@@ -48,7 +56,7 @@ class GenericBaseApp:
 		
 		return self.csrs.get_fragment() + \
 			gpmc_bridge.get_fragment() + \
-			sum([c.get_fragment() for c in self.components_inst], Fragment())
+			sum([c.get_fragment() for c in self._all_components], Fragment())
 	
 	def get_symtab(self):
 		return self.csrs.get_symtab(CSR_BASE) + \

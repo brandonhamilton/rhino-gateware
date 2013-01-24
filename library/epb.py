@@ -11,17 +11,14 @@ class EPB:
 		inst = Instance("epb_opb_bridge",
 			Instance.Input("sys_reset", self._reset_pin),
 			
-			Instance.Output("epb_data_oe_n", self._epb_pins.epb_data_oe_n),
-			Instance.Input("epb_cs_n", self._epb_pins.epb_cs_n),
-			Instance.Input("epb_oe_n", self._epb_pins.epb_oe_n),
-			Instance.Input("epb_r_w_n", self._epb_pins.epb_r_w_n),
-			Instance.Input("epb_be_n", self._epb_pins.epb_be_n),
-			Instance.Input("epb_addr", self._epb_pins.epb_addr),
-			Instance.Input("epb_addr_gp", self._epb_pins.epb_addr_gp),
-			Instance.Input("epb_data_i", self._epb_pins.epb_data_i),
-			Instance.Output("epb_data_o", self._epb_pins.epb_data_o),
-			Instance.Output("epb_rdy", self._epb_pins.epb_rdy),
-			Instance.Output("epb_rdy_oe", self._epb_pins.epb_rdy_oe),
+			Instance.Input("epb_cs_n", self._epb_pins.cs_n),
+			Instance.Input("epb_oe_n", self._epb_pins.oe_n),
+			Instance.Input("epb_r_w_n", self._epb_pins.r_w_n),
+			Instance.Input("epb_be_n", self._epb_pins.be_n),
+			Instance.Input("epb_addr", self._epb_pins.addr),
+			Instance.Input("epb_addr_gp", self._epb_pins.addr_gp),
+			Instance.Input("epb_data", self._epb_pins.data),
+			Instance.Output("epb_rdy", self._epb_pins.rdy),
 
 			Instance.ClockPort("OPB_Clk", domain="opb")
 			Instance.ResetPort("OPB_Rst", domain="opb")

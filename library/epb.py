@@ -20,8 +20,8 @@ class EPB:
 			Instance.Input("epb_data", self._epb_pins.data),
 			Instance.Output("epb_rdy", self._epb_pins.rdy),
 
-			Instance.ClockPort("OPB_Clk", domain="opb")
-			Instance.ResetPort("OPB_Rst", domain="opb")
+			Instance.ClockPort("OPB_Clk", domain="opb"),
+			Instance.ResetPort("OPB_Rst", domain="opb"),
 			Instance.Output("M_ABus", self.opb.adr),
 			Instance.Output("M_select", self.opb.select),
 			Instance.Output("M_RNW", self.opb.rnw),

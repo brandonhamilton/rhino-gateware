@@ -4,6 +4,7 @@ from library.crg import CRGFMC150
 
 TARGET_VENDOR = "xilinx"
 TARGET_DEVICE = "xc6slx150t-fgg676-3"
+MKBOF_HWRTYP = 5
 
 PLATFORM_RESOURCES = [
 	("user_led", 0, Pins("Y3")),

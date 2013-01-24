@@ -3,6 +3,7 @@ from library.baseapp import RoachBaseApp
 
 TARGET_VENDOR = "xilinx"
 TARGET_DEVICE = "xc5vsx95t-ff1136-1"
+MKBOF_HWRTYP = 3
 
 PLATFORM_RESOURCES = [
 	("epb", 0,

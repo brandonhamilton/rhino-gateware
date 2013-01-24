@@ -15,7 +15,7 @@ class EPB:
 			Instance.Input("epb_be_n", self._epb_pins.be_n),
 			Instance.Input("epb_addr", self._epb_pins.addr),
 			Instance.Input("epb_addr_gp", self._epb_pins.addr_gp),
-			Instance.Input("epb_data", self._epb_pins.data),
+			Instance.InOut("epb_data", self._epb_pins.data),
 			Instance.Output("epb_rdy", self._epb_pins.rdy),
 
 			Instance.ClockPort("OPB_Clk", domain="opb"),

@@ -4,6 +4,7 @@ from tools.cmgr import *
 from tools.mmgr import *
 from library.gpmc import *
 from library.crg import *
+from library.epb import *
 
 # set CSR data width to 16-bit
 from migen.bus import csr
@@ -85,3 +86,20 @@ class RhinoBaseApp(GenericBaseApp):
 	def get_symtab(self):
 		return self.csrs.get_symtab(CSR_BASE) + \
 			self.streams.get_symtab(DMA_BASE, DMA_PORT_RANGE)
+
+OPB_BASE = 0x0
+
+class RoachBaseApp(GenericBaseApp):
+	def __init__(self, components, platform_resources, crg_factory=lambda app: CRGRoach(app)):
+		self.opb = OPBManager(self, OPB_BASE)
+		GenericBaseApp.__init__(self, components, platform_resources, crg_factory)
+	
+	def get_fragment(self):
+		epb_bridge = EPB(self.constraints.request("epb"))
+		self.opb.master = epb.opb
+		return self.opb.get_fragment() + \
+			epb_bridge.get_fragment() + \
+			sum([c.get_fragment() for c in self.all_components], Fragment())
+	
+	def get_symtab(self):
+		return self.opb.get_symtab()

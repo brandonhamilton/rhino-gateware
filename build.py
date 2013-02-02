@@ -16,6 +16,7 @@ def main():
 	platform = args.platform
 	apps = args.applications
 
+	sys.path = search_dirs + sys.path
 	platform_module = tools.try_import(search_dirs, os.path.join("platform", platform), "platform")
 	builder_module = tools.try_import(search_dirs, "tools", platform_module.TARGET_VENDOR)
 
@@ -33,7 +34,6 @@ def main():
 		output_dir = os.path.join(application_dir, "output")
 		tools.mkdir_noerror(build_dir)
 		tools.mkdir_noerror(output_dir)
-		sys.path.insert(0, root_dir)
 		
 		# Build application and generate sources
 		application_module = imp.load_source(build_name, os.path.join(application_dir, "top.py"))
@@ -67,9 +67,6 @@ def main():
 			os.path.join(build_dir, build_name + ".bin")])
 		if r != 0:
 			raise OSError("Subprocess failed")
-		
-		# Clean up environment
-		sys.path.remove(root_dir)
 		
 		print(" Completed build of '%s'" % build_name)
 

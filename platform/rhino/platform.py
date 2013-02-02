@@ -1,5 +1,5 @@
 from tools.cmgr import *
-from library.baseapp import GenericBaseApp
+from library.baseapp import RhinoBaseApp
 from library.crg import CRGFMC150
 
 TARGET_VENDOR = "xilinx"

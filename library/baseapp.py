@@ -14,13 +14,14 @@ DMA_BASE = 0x10000000
 DMA_PORT_RANGE = 8192
 
 class Comp:
-	def __init__(self, comp_class, name=None, **comp_params):
+	def __init__(self, comp_class, name=None, platform=None, **comp_params):
 		self.comp_class = comp_class
 		self.comp_params = comp_params
 		self.name = name
+		self.platform = platform
 
 class GenericBaseApp:
-	def __init__(self, components, platform_resources, crg_factory):
+	def __init__(self, components, platform_resources, platform_name, crg_factory):
 		self.platform_resources = platform_resources
 		
 		self.constraints = ConstraintManager(self.platform_resources)
@@ -35,12 +36,13 @@ class GenericBaseApp:
 		for c in components:
 			if not isinstance(c, Comp):
 				c = Comp(c)
-			self.current_comp_name = c.name
-			inst = c.comp_class(self, **c.comp_params)
-			del self.current_comp_name
-			if c.name is not None:
-				self.components[c.name] = inst
-			self.all_components.append(inst)
+			if c.platform is None or c.platform == platform_name:
+				self.current_comp_name = c.name
+				inst = c.comp_class(self, **c.comp_params)
+				del self.current_comp_name
+				if c.name is not None:
+					self.components[c.name] = inst
+				self.all_components.append(inst)
 	
 	def get_formatted_symtab(self):
 		symtab = self.get_symtab()
@@ -61,10 +63,10 @@ class GenericBaseApp:
 		return vsrc, ns, sig_constraints, platform_commands, symtab
 
 class RhinoBaseApp(GenericBaseApp):
-	def __init__(self, components, platform_resources, crg_factory=lambda app: CRG100(app)):
+	def __init__(self, components, platform_resources, platform_name, crg_factory=lambda app: CRG100(app)):
 		self.csrs = CSRManager()
 		self.streams = StreamManager(16)
-		GenericBaseApp.__init__(self, components, platform_resources, crg_factory)
+		GenericBaseApp.__init__(self, components, platform_resources, platform_name, crg_factory)
 	
 	def get_fragment(self):
 		streams_from = self.streams.get_ports(FROM_EXT)

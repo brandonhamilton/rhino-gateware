@@ -4,6 +4,178 @@ from migen.flow.actor import *
 from migen.bank.description import *
 from migen.corelogic.fsm import FSM
 
+class I2CDataWriter:
+	def __init__(self, cycle_bits, data_bits):
+		self.cycle_bits = cycle_bits
+		self.data_bits = data_bits
+		
+		# I/O signals
+		self.d = Signal(reset=1)
+		self.clk = Signal(reset=1)
+		
+		# control signals
+		self.pds = Signal()
+		self.pdi = Signal(self.data_bits)
+		
+		self.clk_high = Signal()
+		self.clk_low = Signal()
+		
+		self.busy = Signal()
+		self.eoc = Signal()
+		self.ev_clk_high = Signal()
+		self.ev_clk_low = Signal()
+		self.ev_data = Signal()
+		self.ev_start = Signal()
+		self.ev_stop_low = Signal()
+		self.ev_stop_high = Signal()
+		
+		# FSM
+		fsm_states = ["WAIT_DATA", "START_CONDITION", "TRANSFER_DATA", "ACK", "STOP_CONDITION"]
+		self.fsm = FSM(*fsm_states)
+		
+		# registers
+		self._pos_end_cycle = RegisterField("pos_end_cycle", self.cycle_bits, reset=240)
+		self._pos_clk_high = RegisterField("pos_clk_high", self.cycle_bits, reset=140)
+		self._pos_data = RegisterField("pos_data", self.cycle_bits, reset=70)
+		self._pos_start = RegisterField("pos_start", self.cycle_bits, reset=170)
+		self._pos_stop_low = RegisterField("pos_stop_low", self.cycle_bits, reset=70)
+		self._pos_stop_high = RegisterField("pos_stop_high", self.cycle_bits, reset=210)
+		
+	def get_registers(self):
+		return [self._pos_end_cycle, self._pos_data]
+	
+	def get_fragment(self):
+		# cycle counter and events
+		cycle_counter = Signal(self.cycle_bits)
+		cycle_counter_reset = Signal()
+		comb = [
+			self.eoc.eq(cycle_counter == self._pos_end_cycle.field.r)
+		]
+		sync = [
+			If(self.eoc | cycle_counter_reset,
+				cycle_counter.eq(0)
+			).Else(
+				cycle_counter.eq(cycle_counter + 1)
+			)
+		]
+		
+		comb += [
+			self.ev_clk_high.eq(cycle_counter == self._pos_clk_high.field.r),
+			self.ev_clk_low.eq(cycle_counter == self._pos_end_cycle.field.r),
+			self.ev_data.eq(cycle_counter == self._pos_data.field.r),
+			self.ev_start.eq(cycle_counter == self._pos_start.field.r),
+			self.ev_stop_low.eq(cycle_counter == self._pos_stop_low.field.r),
+			self.ev_stop_high.eq(cycle_counter == self._pos_stop_high.field.r)
+		]
+		
+		# data
+		sr = Signal(self.data_bits)
+		sr_load = Signal()
+		sr_shift = Signal()
+		data_start = Signal()
+		data_stop_low = Signal()
+		data_stop_high = Signal()
+		remaining_data = Signal(max=self.data_bits+1)
+		sync += [
+			If(sr_load,
+				sr.eq(self.pdi),
+				remaining_data.eq(self.data_bits)
+			).Elif(sr_shift,
+				sr.eq(sr[1:]),
+				self.d.eq(sr[0]),
+				remaining_data.eq(remaining_data-1)
+			).Elif(data_start,
+				self.d.eq(0)
+			).Elif(data_stop_low,
+				self.d.eq(0)
+			).Elif(data_stop_high,
+				self.d.eq(1)
+			)
+		]
+		
+		# clock
+		clk_p = Signal(reset=1)
+		sync += [
+			If(self.clk_high,
+				clk_p.eq(1)
+			).Elif(self.clk_low,
+				clk_p.eq(0)
+			),
+			self.clk.eq(clk_p)
+		]
+		
+		# control FSM
+		self.fsm.act(self.fsm.WAIT_DATA,
+			cycle_counter_reset.eq(1),
+			sr_load.eq(1),
+			If(self.pds,
+				self.fsm.next_state(self.fsm.START_CONDITION)
+			)
+		)
+		self.fsm.act(self.fsm.START_CONDITION,
+			self.busy.eq(1),
+			self.clk_high.eq(self.ev_clk_high),
+			self.clk_low.eq(self.ev_clk_low),
+			data_start.eq(self.ev_start),
+			If(self.eoc,
+				self.fsm.next_state(self.fsm.TRANSFER_DATA)
+			)
+		)
+		self.fsm.act(self.fsm.TRANSFER_DATA,
+			self.busy.eq(1),
+			self.clk_high.eq(self.ev_clk_high),
+			self.clk_low.eq(self.ev_clk_low),
+			sr_shift.eq(self.ev_data),
+			If(self.eoc & (remaining_data[0:3] == 0),
+				self.fsm.next_state(self.fsm.ACK)
+			)
+		)
+		self.fsm.act(self.fsm.ACK,
+			self.busy.eq(1),
+			self.clk_high.eq(self.ev_clk_high),
+			self.clk_low.eq(self.ev_clk_low),
+			If(self.eoc,
+				If((remaining_data == 0),
+					self.fsm.next_state(self.fsm.STOP_CONDITION)
+				).Else(self.fsm.next_state(self.fsm.TRANSFER_DATA))
+			)
+		)
+		self.fsm.act(self.fsm.STOP_CONDITION,
+			self.busy.eq(1),
+			self.clk_high.eq(self.ev_clk_high),
+			data_stop_low.eq(self.ev_stop_low),
+			data_stop_high.eq(self.ev_stop_high),
+			If(self.eoc,
+				self.fsm.next_state(self.fsm.WAIT_DATA)
+			)
+		)
+		
+		return Fragment(comb, sync) + self.fsm.get_fragment()
+
+class PCA9555Driver(Actor):
+	def __init__(self, cycle_bits=8, addr=0x20):
+		self._idw = I2CDataWriter(cycle_bits, 32)
+		self.d = self._idw.d
+		self.clk = self._idw.clk
+		self.addr = Signal(7,reset=addr)
+		Actor.__init__(self, ("program", Sink, [("addr", 8), ("data", 16)]))
+		
+	def get_registers(self):
+		return self._idw.get_registers()
+	
+	def get_fragment(self):
+		word = Signal(32)
+		comb = [
+			self._idw.pds.eq(self.endpoints["program"].stb),
+			word.eq(Cat(self.token("program").data, self.token("program").addr, 0, self.addr)),
+			self._idw.pdi.eq(bitreverse(word)),
+			self.busy.eq(self._idw.busy)
+		]
+		self._idw.fsm.act(self._idw.fsm.WAIT_DATA,
+			self.endpoints["program"].ack.eq(1)
+		)
+		return Fragment(comb) + self._idw.get_fragment()
+		
 class SerialDataWriter:
 	def __init__(self, cycle_bits, data_bits, extra_fsm_states=[]):
 		self.cycle_bits = cycle_bits

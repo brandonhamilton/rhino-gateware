@@ -9,7 +9,6 @@ from migen.flow.transactions import *
 from migen.flow.network import *
 from migen.actorlib.sim import *
 from migen.sim.generic import Simulator
-from migen.sim.icarus import Runner
 
 from library.waveform_generator import WaveformGenerator
 
@@ -99,9 +98,9 @@ def main():
 	
 	# CSR programmer and interconnect
 	csr_i_prog = csr.Initiator(programmer(values_i, received_values_i))
-	csr_i_intercon = csr.Interconnect(csr_i_prog.bus, [wg_i.bank.interface])
+	csr_i_intercon = csr.Interconnect(csr_i_prog.bus, [wg_i.bank.bus])
 	csr_q_prog = csr.Initiator(programmer(values_q, received_values_q))
-	csr_q_intercon = csr.Interconnect(csr_q_prog.bus, [wg_q.bank.interface])
+	csr_q_intercon = csr.Interconnect(csr_q_prog.bus, [wg_q.bank.bus])
 
 	# Run the simulation until the CSR programmer finishes
 	def end_simulation(s):
@@ -110,7 +109,7 @@ def main():
 		+ csr_i_prog.get_fragment() + csr_i_intercon.get_fragment() \
 		+ csr_q_prog.get_fragment() + csr_q_intercon.get_fragment() \
 		+ Fragment(sim=[end_simulation])
-	sim = Simulator(frag, Runner())
+	sim = Simulator(frag)
 	sim.run()
 	
 	# Check correctness of the first received values

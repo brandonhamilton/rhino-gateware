@@ -2,7 +2,6 @@ from migen.flow.network import *
 from migen.flow.transactions import *
 from migen.actorlib.sim import *
 from migen.sim.generic import Simulator, TopLevel
-from migen.sim.icarus import Runner
 
 from library.rf_drivers import *
 
@@ -23,7 +22,7 @@ def main():
 	def end_simulation(s):
 		s.interrupt = s.cycle_counter > 5 and not s.rd(c.busy)
 	f = c.get_fragment() + Fragment(sim=[end_simulation])
-	sim = Simulator(f, Runner(), TopLevel(vcd_name="pe43602.vcd"))
+	sim = Simulator(f, TopLevel(vcd_name="pe43602.vcd"))
 	sim.run()
 
 main()

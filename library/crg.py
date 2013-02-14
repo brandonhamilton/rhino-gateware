@@ -1,22 +1,15 @@
 from migen.fhdl.structure import *
 from migen.bank.description import *
+from mibuild.crg import CRG
 
 from library.uid import UID_FMC150_CRG
-
-class CRG:
-	def get_clock_domains(self):
-		r = dict()
-		for k, v in self.__dict__.items():
-			if isinstance(v, ClockDomain):
-				r[v.name] = v
-		return r
 
 class CRG100(CRG):
 	def __init__(self, baseapp):
 		self.cd = ClockDomain("sys")
-		self._clk = baseapp.constraints.request("clk100")
+		self._clk = baseapp.mplat.request("clk100")
 		
-		baseapp.constraints.add_platform_command("""
+		baseapp.mplat.add_platform_command("""
 NET "{clk_100}" TNM_NET = "GRPclk_100";
 TIMESPEC "TSclk_100" = PERIOD "GRPclk_100" 10 ns HIGH 50%;
 """, clk_100=self._clk.p)
@@ -67,10 +60,10 @@ class CRGFMC150(CRG):
 		self.cd_dacio = ClockDomain("dacio")
 		self.dacio_strb = Signal()
 		
-		self._clk100 = baseapp.constraints.request("clk100")
-		self._fmc_clocks = baseapp.constraints.request("fmc150_clocks")
+		self._clk100 = baseapp.mplat.request("clk100")
+		self._fmc_clocks = baseapp.mplat.request("fmc150_clocks")
 
-		baseapp.constraints.add_platform_command("""
+		baseapp.mplat.add_platform_command("""
 NET "{clk_100}" TNM_NET = "GRPclk_100";
 NET "{clk_adc}" TNM_NET = "GRPclk_adc";
 TIMESPEC "TSclk_100" = PERIOD "GRPclk_100" 10 ns HIGH 50%;

@@ -4,7 +4,7 @@ from library.uid import UID_FMC150_CTRL
 
 class FMC150Controller(GPIO):
 	def __init__(self, baseapp, csr_name="fmc150_controller"):
-		fc = baseapp.constraints.request("fmc150_ctrl")
+		fc = baseapp.mplat.request("fmc150_ctrl")
 		signals = [
 			(fc.spi_sclk,		OUTPUT,	"spi_sclk"),
 			(fc.spi_data,		OUTPUT,	"spi_data"),

@@ -9,7 +9,7 @@ from library.ti_data import DAC, DAC2X, ADC
 
 class FullWaveformGenerator(CompositeActor):
 	def __init__(self, baseapp):
-		dac_pins = baseapp.constraints.request("ti_dac")
+		dac_pins = baseapp.mplat.request("ti_dac")
 		width = 2*len(dac_pins.dat_p)
 		
 		spc = 2 if baseapp.double_dac else 1
@@ -35,7 +35,7 @@ class FullWaveformGenerator(CompositeActor):
 
 class FullWaveformCollector(CompositeActor):
 	def __init__(self, baseapp):
-		adc_pins = baseapp.constraints.request("ti_adc")
+		adc_pins = baseapp.mplat.request("ti_adc")
 		width = 2*len(adc_pins.dat_a_p)
 		
 		adc = ADC(adc_pins)

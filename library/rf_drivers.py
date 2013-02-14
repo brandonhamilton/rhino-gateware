@@ -30,8 +30,7 @@ class I2CDataWriter:
 		self.ev_stop_high = Signal()
 		
 		# FSM
-		fsm_states = ["WAIT_DATA", "START_CONDITION", "TRANSFER_DATA", "ACK", "STOP_CONDITION"]
-		self.fsm = FSM(*fsm_states)
+		self.fsm = FSM("WAIT_DATA", "START_CONDITION", "TRANSFER_DATA", "ACK", "STOP_CONDITION")
 		
 		# registers
 		self._pos_end_cycle = RegisterField("pos_end_cycle", self.cycle_bits, reset=240)
@@ -135,7 +134,7 @@ class I2CDataWriter:
 			self.clk_high.eq(self.ev_clk_high),
 			self.clk_low.eq(self.ev_clk_low),
 			If(self.eoc,
-				If((remaining_data == 0),
+				If(remaining_data == 0,
 					self.fsm.next_state(self.fsm.STOP_CONDITION)
 				).Else(self.fsm.next_state(self.fsm.TRANSFER_DATA))
 			)
@@ -152,12 +151,13 @@ class I2CDataWriter:
 		
 		return Fragment(comb, sync) + self.fsm.get_fragment()
 
+# I2C IO expander
 class PCA9555Driver(Actor):
 	def __init__(self, cycle_bits=8, addr=0x20):
 		self._idw = I2CDataWriter(cycle_bits, 32)
 		self.d = self._idw.d
 		self.clk = self._idw.clk
-		self.addr = Signal(7,reset=addr)
+		self.addr = addr
 		Actor.__init__(self, ("program", Sink, [("addr", 8), ("data", 16)]))
 		
 	def get_registers(self):
@@ -165,9 +165,11 @@ class PCA9555Driver(Actor):
 	
 	def get_fragment(self):
 		word = Signal(32)
+		addr = Signal(7)
 		comb = [
 			self._idw.pds.eq(self.endpoints["program"].stb),
-			word.eq(Cat(self.token("program").data, self.token("program").addr, 0, self.addr)),
+			addr.eq(self.addr),
+			word.eq(Cat(self.token("program").data, self.token("program").addr, 0, addr)),
 			self._idw.pdi.eq(bitreverse(word)),
 			self.busy.eq(self._idw.busy)
 		]

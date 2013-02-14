@@ -4,7 +4,7 @@ import subprocess
 from migen.fhdl import verilog
 from mibuild.tools import write_to_file
 
-from tools.mmgr import *
+from library.mmgr import *
 from library.gpmc import *
 from library.crg import *
 

@@ -1,7 +1,7 @@
 from migen.fhdl.structure import *
 from migen.bank.description import *
 
-from tools.mmgr import *
+from library.mmgr import *
 from library.uid import UID_DEMO_AFFINE
 
 class DemoAffine:

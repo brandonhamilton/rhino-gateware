@@ -1,6 +1,5 @@
 __pycache__
 build/
-output/
 *.o
 *.d
 *.a

@@ -41,7 +41,12 @@ class I2CDataWriter:
 		self._pos_stop_high = RegisterField("pos_stop_high", self.cycle_bits, reset=210)
 		
 	def get_registers(self):
-		return [self._pos_end_cycle, self._pos_data]
+		return [self._pos_end_cycle,
+			self._pos_clk_high,
+			self._pos_data,
+			self._pos_start,
+			self._pos_stop_low,
+			self._pos_stop_high]
 	
 	def get_fragment(self):
 		# cycle counter and events
@@ -151,32 +156,66 @@ class I2CDataWriter:
 		
 		return Fragment(comb, sync) + self.fsm.get_fragment()
 
-# I2C IO expander
-class PCA9555Driver(Actor):
-	def __init__(self, cycle_bits=8, addr=0x20):
-		self._idw = I2CDataWriter(cycle_bits, 32)
-		self.d = self._idw.d
-		self.clk = self._idw.clk
-		self.addr = addr
-		Actor.__init__(self, ("program", Sink, [("addr", 8), ("data", 16)]))
-		
+class BBI2CDataWriter(I2CDataWriter):
+	def __init__(self, *args, **kwargs):
+		self.idw = I2CDataWriter(*args, **kwargs)
+
+		self.sda = TSTriple(reset_o=1, reset_oe=1)
+		self.scl = Signal()
+
+		self._bb_enable = RegisterField("bb_enable")
+		self._bb_sda_oe = Field("sda_oe")
+		self._bb_sda_o = Field("sda_o")
+		self._bb_scl = Field("scl")
+		self._bb_out = RegisterFields("bb_out", [self._bb_sda_oe, self._bb_sda_o, self._bb_scl])
+		self._bb_sda_in = RegisterField("bb_sda_in", access_dev=WRITE_ONLY, access_bus=READ_ONLY)
+
 	def get_registers(self):
-		return self._idw.get_registers()
+		return [self._bb_enable, self._bb_out, self._bb_sda_in] \
+			+ self.idw.get_registers()
+
+	def get_fragment(self):
+		sda_r1 = Signal()
+		sda_synced = Signal()
+		sync = [
+			sda_r1.eq(self.sda.i),
+			sda_synced.eq(sda_r1)
+		]
+		comb = [
+			If(self._bb_enable.field.r,
+				self.sda.oe.eq(self._bb_sda_oe.r),
+				self.sda.o.eq(self._bb_sda_o.r),
+				self.scl.eq(self._bb_scl.r)
+			).Else(
+				self.sda.oe.eq(1),
+				self.sda.o.eq(self.idw.d),
+				self.scl.eq(self.idw.clk)
+			),
+			self._bb_sda_in.field.w.eq(sda_synced)
+		]
+		return Fragment(comb, sync) + self.idw.get_fragment()
+
+# I2C IO expander
+class PCA9555Driver(BBI2CDataWriter, Actor):
+	def __init__(self, cycle_bits=8, addr=0x20):
+		self.addr = addr
+		BBI2CDataWriter.__init__(self, cycle_bits, 32)
+		Actor.__init__(self, ("program", Sink, [("addr", 8), ("data", 16)]))
 	
 	def get_fragment(self):
 		word = Signal(32)
 		addr = Signal(7)
 		comb = [
-			self._idw.pds.eq(self.endpoints["program"].stb),
+			self.idw.pds.eq(self.endpoints["program"].stb),
 			addr.eq(self.addr),
 			word.eq(Cat(self.token("program").data, self.token("program").addr, 0, addr)),
-			self._idw.pdi.eq(bitreverse(word)),
-			self.busy.eq(self._idw.busy)
+			self.idw.pdi.eq(bitreverse(word)),
+			self.busy.eq(self.idw.busy)
 		]
-		self._idw.fsm.act(self._idw.fsm.WAIT_DATA,
+		self.idw.fsm.act(self.idw.fsm.WAIT_DATA,
 			self.endpoints["program"].ack.eq(1)
 		)
-		return Fragment(comb) + self._idw.get_fragment()
+		return Fragment(comb) + BBI2CDataWriter.get_fragment(self)
 		
 class SerialDataWriter:
 	def __init__(self, cycle_bits, data_bits, extra_fsm_states=[]):

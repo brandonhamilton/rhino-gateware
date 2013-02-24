@@ -1,6 +1,7 @@
 from fractions import Fraction
 
 from migen.fhdl.structure import *
+from migen.fhdl.specials import Instance
 from migen.bank.description import *
 from mibuild.crg import CRG
 
@@ -33,7 +34,7 @@ TIMESPEC "TSclk_100" = PERIOD "GRPclk_100" 10 ns HIGH 50%;
 			Instance.Input("A3", 1),
 			Instance.Output("Q", self.cd.rst)
 		)
-		return Fragment(instances={ibufg, srl_reset})
+		return Fragment(specials={ibufg, srl_reset})
 
 # Clock generator for radar-type applications using TI ADC/DAC
 #
@@ -240,7 +241,7 @@ TIMESPEC "TSclk_adc" = PERIOD "GRPclk_adc" """+str(float(self._adc_period))+""" 
 			self.reg_pll_locked.field.w.eq(pll_locked)
 		]
 		
-		return Fragment(comb, instances={freerun_buffer,
+		return Fragment(comb, specials={freerun_buffer,
 			dcm_sys, bufg_sys, adc_buffer, pll, bufg_fb,
 			bufg_signal, bufg_dac, bufpll_dacio, oddr2_dac,
 			obufds_dac, srl_reset})

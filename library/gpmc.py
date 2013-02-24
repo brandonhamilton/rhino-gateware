@@ -1,4 +1,5 @@
 from migen.fhdl.structure import *
+from migen.fhdl.specials import Instance
 from migen.bus import csr
 
 # TODO: rewrite in full FHDL
@@ -37,4 +38,4 @@ class GPMC:
 			Instance.Input("gpmc_csr_cs_n", self._csr_cs_pin),
 			Instance.InOut("gpmc_d", self._gpmc_pins.d)
 		)
-		return Fragment(instances=[inst])
+		return Fragment(specials={inst})

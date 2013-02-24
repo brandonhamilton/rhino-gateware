@@ -1,10 +1,11 @@
 from migen.fhdl.structure import *
+from migen.fhdl.specials import Instance
 from migen.flow.actor import *
 from migen.bank.description import *
 
 def _serialize4_ds(strobe, inputs, out_p, out_n):
 	single_ended = Signal()
-	return [
+	return {
 		Instance("OSERDES2",
 			Instance.Parameter("DATA_WIDTH", 4),
 			Instance.Parameter("DATA_RATE_OQ", "SDR"),
@@ -46,7 +47,7 @@ def _serialize4_ds(strobe, inputs, out_p, out_n):
 			Instance.Output("O", out_p),
 			Instance.Output("OB", out_n)
 		)
-	]
+	}
 
 def _serialize8_ds(strobe, inputs, out_p, out_n):
 	cascade_m2s_d = Signal()
@@ -54,7 +55,7 @@ def _serialize8_ds(strobe, inputs, out_p, out_n):
 	cascade_m2s_t = Signal()
 	cascade_s2m_t = Signal()
 	single_ended = Signal()
-	return [
+	return {
 		Instance("OSERDES2",
 			Instance.Parameter("DATA_WIDTH", 8),
 			Instance.Parameter("DATA_RATE_OQ", "SDR"),
@@ -136,7 +137,7 @@ def _serialize8_ds(strobe, inputs, out_p, out_n):
 			Instance.Output("O", out_p),
 			Instance.Output("OB", out_n)
 		)
-	]
+	}
 
 class _BaseDAC(Actor):
 	def __init__(self, pins, serdesstrobe, double):
@@ -179,7 +180,7 @@ class DAC(_BaseDAC):
 	
 	def get_fragment(self):
 		dw = len(self._pins.dat_p)
-		inst = []
+		inst = set()
 		
 		# mux test pattern, enable DAC, accept tokens
 		token = self.token("samples")
@@ -224,14 +225,14 @@ class DAC(_BaseDAC):
 		
 		# transmit data and framing signal
 		for i in range(dw):
-			inst += _serialize4_ds(self._serdesstrobe,
+			inst |= _serialize4_ds(self._serdesstrobe,
 				[mq_d[i], mi[dw+i], mi[i], mq[dw+i]],
 				self._pins.dat_p[i], self._pins.dat_n[i])
-		inst += _serialize4_ds(self._serdesstrobe,
+		inst |= _serialize4_ds(self._serdesstrobe,
 			[fr[3], fr[2], fr[1], fr[0]],
 			self._pins.frame_p, self._pins.frame_n)
 		
-		return Fragment(comb, sync, instances=inst)
+		return Fragment(comb, sync, specials=inst)
 
 class DAC2X(_BaseDAC):
 	def __init__(self, pins, serdesstrobe):
@@ -239,7 +240,7 @@ class DAC2X(_BaseDAC):
 	
 	def get_fragment(self):
 		dw = len(self._pins.dat_p)
-		inst = []
+		inst = set()
 		
 		# mux test pattern, enable DAC, accept tokens
 		token = self.token("samples")
@@ -285,16 +286,16 @@ class DAC2X(_BaseDAC):
 		
 		# transmit data and framing signal
 		for i in range(dw):
-			inst += _serialize8_ds(self._serdesstrobe,
+			inst |= _serialize8_ds(self._serdesstrobe,
 				[mq1_d[i], mi0[dw+i], mi0[i], mq0[dw+i],
 				 mq0[i], mi1[dw+i], mi1[i], mq1[dw+i]],
 				self._pins.dat_p[i], self._pins.dat_n[i])
-		inst += _serialize8_ds(self._serdesstrobe,
+		inst |= _serialize8_ds(self._serdesstrobe,
 			[fr[7], fr[6], fr[5], fr[4],
 			 fr[3], fr[2], fr[1], fr[0]],
 			self._pins.frame_p, self._pins.frame_n)
 		
-		return Fragment(comb, sync, instances=inst)
+		return Fragment(comb, sync, specials=inst)
 
 class ADC(Actor):
 	def __init__(self, pins):
@@ -316,11 +317,11 @@ class ADC(Actor):
 		# receive data
 		dw = len(self._pins.dat_a_p)
 		token = self.token("samples")
-		inst = []
+		inst = set()
 		for i in range(dw):
 			single_ended_a = Signal()
 			single_ended_b = Signal()
-			inst += [
+			inst |= {
 				Instance("IBUFDS",
 					Instance.Input("I", self._pins.dat_a_p[i]),
 					Instance.Input("IB", self._pins.dat_a_n[i]),
@@ -363,6 +364,6 @@ class ADC(Actor):
 					Instance.Input("R", 0),
 					Instance.Input("S", 0)
 				)
-			]
+			}
 		
-		return Fragment(comb, instances=inst)
+		return Fragment(comb, specials=inst)

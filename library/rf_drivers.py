@@ -2,7 +2,7 @@ from migen.fhdl.structure import *
 from migen.fhdl.tools import bitreverse
 from migen.flow.actor import *
 from migen.bank.description import *
-from migen.corelogic.fsm import FSM
+from migen.genlib.fsm import FSM
 
 class I2CDataWriter:
 	def __init__(self, cycle_bits, data_bits):

@@ -1,7 +1,7 @@
 from math import sin, cos, pi
 
 from migen.fhdl.structure import *
-from migen.corelogic.complex import *
+from migen.genlib.complex import *
 
 class _Butterfly:
 	def __init__(self, nbits, nfrac, latency):

@@ -1,7 +1,7 @@
 from migen.fhdl.structure import *
 from migen.bank.description import *
 from migen.flow.actor import *
-from migen.corelogic.fsm import FSM
+from migen.genlib.fsm import FSM
 
 MODE_DISABLED = 0
 MODE_LOAD = 1

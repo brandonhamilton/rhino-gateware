@@ -1,4 +1,5 @@
 from migen.fhdl.structure import *
+from migen.fhdl.specials import TSTriple
 from migen.fhdl.tools import bitreverse
 from migen.flow.actor import *
 from migen.bank.description import *

@@ -140,7 +140,7 @@ def _serialize8_ds(strobe, inputs, out_p, out_n):
 	}
 
 class _BaseDAC:
-	def __init__(self, pins, serdesstrobe, double):
+	def __init__(self, pins, serdesstrobe):
 		self._pins = pins
 		self._serdesstrobe = serdesstrobe
 		
@@ -162,17 +162,7 @@ class _BaseDAC:
 		self._test_pattern_q0 = Signal(width)
 		self._test_pattern_i1 = Signal(width)
 		self._test_pattern_q1 = Signal(width)
-		self._pulse_frame = Signal()
-		
-		# data interface, in signal clock domain
-		if double:
-				self.i0 = Signal(width)
-				self.q0 = Signal(width)
-				self.i1 = Signal(width)
-				self.q1 = Signal(width)
-		else:
-				self.i = Signal(width)
-				self.q = Signal(width)
+		self._pulse_frame = Signal()				
 	
 	def get_registers(self):
 		return [self._r_data_en, self._r_test_pattern_en,
@@ -199,6 +189,11 @@ class _BaseDAC:
 class DAC(_BaseDAC):
 	def __init__(self, pins, serdesstrobe):
 		_BaseDAC.__init__(self, pins, serdesstrobe, False)
+
+		# in signal clock domain
+		width = 2*len(pins.dat_p)
+		self.i = Signal(width)
+		self.q = Signal(width)
 	
 	def get_fragment(self):
 		dw = len(self._pins.dat_p)
@@ -223,7 +218,7 @@ class DAC(_BaseDAC):
 				mi.eq(self.i),
 				mq.eq(self.q)
 			),
-			If(frame_div == 0) & (pulse_frame_pending | self._test_pattern_en | self._data_en),
+			If((frame_div == 0) & (pulse_frame_pending | self._test_pattern_en | self._data_en),
 				fr.eq(0x6)
 			).Else(
 				fr.eq(0x0)
@@ -254,7 +249,14 @@ class DAC(_BaseDAC):
 
 class DAC2X(_BaseDAC):
 	def __init__(self, pins, serdesstrobe):
-		_BaseDAC.__init__(self, pins, serdesstrobe, True)
+		_BaseDAC.__init__(self, pins, serdesstrobe)
+
+		# in signal clock domain
+		width = 2*len(pins.dat_p)
+		self.i0 = Signal(width)
+		self.q0 = Signal(width)
+		self.i1 = Signal(width)
+		self.q1 = Signal(width)
 	
 	def get_fragment(self):
 		dw = len(self._pins.dat_p)

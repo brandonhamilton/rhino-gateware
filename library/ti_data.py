@@ -250,7 +250,7 @@ class DAC(_BaseDAC):
 			[fr[3], fr[2], fr[1], fr[0]],
 			self._pins.frame_p, self._pins.frame_n)
 		
-		return _BaseDAC.get_fragment(self) + Fragment(comb, sync, specials=inst)
+		return _BaseDAC.get_fragment(self) + Fragment(comb, sync={"signal": sync}, specials=inst)
 
 class DAC2X(_BaseDAC):
 	def __init__(self, pins, serdesstrobe):
@@ -309,7 +309,7 @@ class DAC2X(_BaseDAC):
 			 fr[3], fr[2], fr[1], fr[0]],
 			self._pins.frame_p, self._pins.frame_n)
 		
-		return _BaseDAC.get_fragment(self) + Fragment(comb, sync, specials=inst)
+		return _BaseDAC.get_fragment(self) + Fragment(comb, sync={"signal": sync}, specials=inst)
 
 class ADC:
 	def __init__(self, pins):

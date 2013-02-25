@@ -1,7 +1,7 @@
 from migen.fhdl.structure import *
 from migen.fhdl.specials import Instance
-from migen.flow.actor import *
 from migen.bank.description import *
+from migen.genlib.cdc import *
 
 def _serialize4_ds(strobe, inputs, out_p, out_n):
 	single_ended = Signal()
@@ -20,7 +20,7 @@ def _serialize4_ds(strobe, inputs, out_p, out_n):
 			Instance.Output("OQ", single_ended),
 			
 			Instance.ClockPort("CLK0", "dacio"),
-			Instance.ClockPort("CLKDIV", "sys"),
+			Instance.ClockPort("CLKDIV", "signal"),
 			Instance.Input("IOCE", strobe),
 			
 			Instance.Input("OCE", 1),
@@ -70,7 +70,7 @@ def _serialize8_ds(strobe, inputs, out_p, out_n):
 			Instance.Output("OQ", single_ended),
 			
 			Instance.ClockPort("CLK0", "dacio"),
-			Instance.ClockPort("CLKDIV", "sys"),
+			Instance.ClockPort("CLKDIV", "signal"),
 			Instance.Input("IOCE", strobe),
 			
 			Instance.Input("OCE", 1),
@@ -108,7 +108,7 @@ def _serialize8_ds(strobe, inputs, out_p, out_n):
 			Instance.Output("OQ"),
 			
 			Instance.ClockPort("CLK0", "dacio"),
-			Instance.ClockPort("CLKDIV", "sys"),
+			Instance.ClockPort("CLKDIV", "signal"),
 			Instance.Input("IOCE", strobe),
 			
 			Instance.Input("OCE", 1),
@@ -139,40 +139,62 @@ def _serialize8_ds(strobe, inputs, out_p, out_n):
 		)
 	}
 
-class _BaseDAC(Actor):
+class _BaseDAC:
 	def __init__(self, pins, serdesstrobe, double):
 		self._pins = pins
 		self._serdesstrobe = serdesstrobe
 		
 		width = 2*len(self._pins.dat_p)
 		
-		self._test_pattern_en = RegisterField("test_pattern_en", 1)
-		self._test_pattern_i0 = RegisterField("test_pattern_i0", width, reset=0x55aa)
-		self._test_pattern_q0 = RegisterField("test_pattern_q0", width, reset=0x55aa)
-		self._test_pattern_i1 = RegisterField("test_pattern_i1", width, reset=0x55aa)
-		self._test_pattern_q1 = RegisterField("test_pattern_q1", width, reset=0x55aa)
-		self._pulse_frame = RegisterRaw("pulse_frame", 1)
+		# registers are in the system clock domain
+		self._r_data_en = RegisterField("data_en", 1)
+		self._r_test_pattern_en = RegisterField("test_pattern_en", 1)
+		self._r_test_pattern_i0 = RegisterField("test_pattern_i0", width, reset=0x55aa)
+		self._r_test_pattern_q0 = RegisterField("test_pattern_q0", width, reset=0x55aa)
+		self._r_test_pattern_i1 = RegisterField("test_pattern_i1", width, reset=0x55aa)
+		self._r_test_pattern_q1 = RegisterField("test_pattern_q1", width, reset=0x55aa)
+		self._r_pulse_frame = RegisterRaw("pulse_frame", 1)
+
+		# register data transferred to signal clock domain
+		self._data_en = Signal()
+		self._test_pattern_en = Signal()
+		self._test_pattern_i0 = Signal(width)
+		self._test_pattern_q0 = Signal(width)
+		self._test_pattern_i1 = Signal(width)
+		self._test_pattern_q1 = Signal(width)
+		self._pulse_frame = Signal()
 		
+		# data interface, in signal clock domain
 		if double:
-			layout = [
-				("i0", width),
-				("q0", width),
-				("i1", width),
-				("q1", width)
-			]
+				self.i0 = Signal(width)
+				self.q0 = Signal(width)
+				self.i1 = Signal(width)
+				self.q1 = Signal(width)
 		else:
-			layout = [
-				("i", width),
-				("q", width)
-			]
-		
-		Actor.__init__(self, ("samples", Sink, layout))
+				self.i = Signal(width)
+				self.q = Signal(width)
 	
 	def get_registers(self):
-		return [self._test_pattern_en,
-			self._test_pattern_i0, self._test_pattern_q0,
-			self._test_pattern_i1, self._test_pattern_q1,
-			self._pulse_frame]
+		return [self._r_data_en, self._r_test_pattern_en,
+			self._r_test_pattern_i0, self._r_test_pattern_q0,
+			self._r_test_pattern_i1, self._r_test_pattern_q1,
+			self._r_pulse_frame]
+
+	def get_fragment(self):
+		ps = PulseSynchronizer("sys", "signal")
+		comb = [
+			ps.i.eq(self._r_pulse_frame.re),
+			self._pulse_frame.eq(ps.o)
+		]
+		cdc = {
+			MultiReg(self._r_data_en.field.r, "sys", self._data_en, "signal"),
+			MultiReg(self._r_test_pattern_en.field.r, "sys", self._test_pattern_en, "signal"),
+			MultiReg(self._r_test_pattern_i0.field.r, "sys", self._test_pattern_i0, "signal"),
+			MultiReg(self._r_test_pattern_q0.field.r, "sys", self._test_pattern_q0, "signal"),
+			MultiReg(self._r_test_pattern_i1.field.r, "sys", self._test_pattern_i1, "signal"),
+			MultiReg(self._r_test_pattern_q1.field.r, "sys", self._test_pattern_q1, "signal")
+		}
+		return ps.get_fragment() + Fragment(comb, specials=cdc)
 
 class DAC(_BaseDAC):
 	def __init__(self, pins, serdesstrobe):
@@ -183,28 +205,25 @@ class DAC(_BaseDAC):
 		inst = set()
 		
 		# mux test pattern, enable DAC, accept tokens
-		token = self.token("samples")
-		iotest = self._test_pattern_en.field.r
-		pulse_frame = Signal()
+		pulse_frame_pending = Signal()
 		frame_div = Signal(3)
 		mi = Signal(2*dw)
 		mq = Signal(2*dw)
 		fr = Signal(4)
 		comb = [
-			self.endpoints["samples"].ack.eq(~iotest),
-			If(iotest,
+			If(self._test_pattern_en,
 				If(frame_div[0],
-					mi.eq(self._test_pattern_i1.field.r),
-					mq.eq(self._test_pattern_q1.field.r)
+					mi.eq(self._test_pattern_i1),
+					mq.eq(self._test_pattern_q1)
 				).Else(
-					mi.eq(self._test_pattern_i0.field.r),
-					mq.eq(self._test_pattern_q0.field.r)
+					mi.eq(self._test_pattern_i0),
+					mq.eq(self._test_pattern_q0)
 				)
 			).Else(
-				mi.eq(token.i),
-				mq.eq(token.q)
+				mi.eq(self.i),
+				mq.eq(self.q)
 			),
-			If((frame_div == 0) & (pulse_frame | iotest | self.endpoints["samples"].stb),
+			If(frame_div == 0) & (pulse_frame_pending | self._test_pattern_en | self._data_en),
 				fr.eq(0x6)
 			).Else(
 				fr.eq(0x0)
@@ -212,13 +231,12 @@ class DAC(_BaseDAC):
 		]
 		mq_d = Signal(2*dw)
 		sync = [
-			If(frame_div == 0,
-				pulse_frame.eq(0)
+			If(self._pulse_frame,
+				pulse_frame_pending.eq(1)
+			).Elif(frame_div == 0,
+				pulse_frame_pending.eq(0)
 			),
-			If(self._pulse_frame.re,
-				pulse_frame.eq(1)
-			),
-			self._pins.txenable.eq(iotest | self.endpoints["samples"].stb),
+			self._pins.txenable.eq(self._test_pattern_en | self._data_en),
 			frame_div.eq(frame_div + 1),
 			mq_d.eq(mq)
 		]
@@ -232,7 +250,7 @@ class DAC(_BaseDAC):
 			[fr[3], fr[2], fr[1], fr[0]],
 			self._pins.frame_p, self._pins.frame_n)
 		
-		return Fragment(comb, sync, specials=inst)
+		return _BaseDAC.get_fragment(self) + Fragment(comb, sync, specials=inst)
 
 class DAC2X(_BaseDAC):
 	def __init__(self, pins, serdesstrobe):
@@ -243,9 +261,7 @@ class DAC2X(_BaseDAC):
 		inst = set()
 		
 		# mux test pattern, enable DAC, accept tokens
-		token = self.token("samples")
-		iotest = self._test_pattern_en.field.r
-		pulse_frame = Signal()
+		pulse_frame_pending = Signal()
 		frame_div = Signal(2)
 		mi0 = Signal(2*dw)
 		mq0 = Signal(2*dw)
@@ -253,19 +269,18 @@ class DAC2X(_BaseDAC):
 		mq1 = Signal(2*dw)
 		fr = Signal(8)
 		comb = [
-			self.endpoints["samples"].ack.eq(~iotest),
-			If(iotest,
-				mi0.eq(self._test_pattern_i0.field.r),
-				mq0.eq(self._test_pattern_q0.field.r),
-				mi1.eq(self._test_pattern_i1.field.r),
-				mq1.eq(self._test_pattern_q1.field.r)
+			If(self._test_pattern_en,
+				mi0.eq(self._test_pattern_i0),
+				mq0.eq(self._test_pattern_q0),
+				mi1.eq(self._test_pattern_i1),
+				mq1.eq(self._test_pattern_q1)
 			).Else(
-				mi0.eq(token.i0),
-				mq0.eq(token.q0),
-				mi1.eq(token.i1),
-				mq1.eq(token.q1)
+				mi0.eq(self.i0),
+				mq0.eq(self.q0),
+				mi1.eq(self.i1),
+				mq1.eq(self.q1)
 			),
-			If((frame_div == 0) & (pulse_frame | iotest | self.endpoints["samples"].stb),
+			If((frame_div == 0) & (pulse_frame_pending | self._test_pattern_en | self._data_en),
 				fr.eq(0x60)
 			).Else(
 				fr.eq(0x00)
@@ -273,13 +288,12 @@ class DAC2X(_BaseDAC):
 		]
 		mq1_d = Signal(2*dw)
 		sync = [
-			If(frame_div == 0,
-				pulse_frame.eq(0)
+			If(self._pulse_frame,
+				pulse_frame_pending.eq(1)
+			).Elif(frame_div == 0,
+				pulse_frame_pending.eq(0)
 			),
-			If(self._pulse_frame.re,
-				pulse_frame.eq(1)
-			),
-			self._pins.txenable.eq(iotest | self.endpoints["samples"].stb),
+			self._pins.txenable.eq(self._test_pattern_en | self._data_en),
 			frame_div.eq(frame_div + 1),
 			mq1_d.eq(mq1)
 		]
@@ -295,30 +309,20 @@ class DAC2X(_BaseDAC):
 			 fr[3], fr[2], fr[1], fr[0]],
 			self._pins.frame_p, self._pins.frame_n)
 		
-		return Fragment(comb, sync, specials=inst)
+		return _BaseDAC.get_fragment(self) + Fragment(comb, sync, specials=inst)
 
-class ADC(Actor):
+class ADC:
 	def __init__(self, pins):
 		self._pins = pins
 		
 		width = 2*len(self._pins.dat_a_p)
-		Actor.__init__(self, ("samples", Source, [
-			("a", width),
-			("b", width)
-		]))
+		# data interface, in signal clock domain
+		self.a = Signal(width)
+		self.b = Signal(width)
 	
 	def get_fragment(self):
-		# push 1 token every cycle
-		# We need 1 token accepted at all cycles. TODO: error reporting
-		comb = [
-			self.endpoints["samples"].stb.eq(1)
-		]
-		
-		# receive data
-		dw = len(self._pins.dat_a_p)
-		token = self.token("samples")
 		inst = set()
-		for i in range(dw):
+		for i in range(len(self._pins.dat_a_p)):
 			single_ended_a = Signal()
 			single_ended_b = Signal()
 			inst |= {
@@ -339,11 +343,11 @@ class ADC(Actor):
 					Instance.Parameter("SRTYPE", "SYNC"),
 					
 					Instance.Input("D", single_ended_a),
-					Instance.Output("Q0", token.a[2*i+1]),
-					Instance.Output("Q1", token.a[2*i]),
+					Instance.Output("Q0", self.a[2*i+1]),
+					Instance.Output("Q1", self.a[2*i]),
 					
-					Instance.ClockPort("C0", invert=False),
-					Instance.ClockPort("C1", invert=True),
+					Instance.ClockPort("C0", "signal", invert=False),
+					Instance.ClockPort("C1", "signal", invert=True),
 					Instance.Input("CE", 1),
 					Instance.Input("R", 0),
 					Instance.Input("S", 0)
@@ -355,15 +359,14 @@ class ADC(Actor):
 					Instance.Parameter("SRTYPE", "SYNC"),
 					
 					Instance.Input("D", single_ended_b),
-					Instance.Output("Q0", token.b[2*i+1]),
-					Instance.Output("Q1", token.b[2*i]),
+					Instance.Output("Q0", self.b[2*i+1]),
+					Instance.Output("Q1", self.b[2*i]),
 					
-					Instance.ClockPort("C0", invert=False),
-					Instance.ClockPort("C1", invert=True),
+					Instance.ClockPort("C0", "signal", invert=False),
+					Instance.ClockPort("C1", "signal", invert=True),
 					Instance.Input("CE", 1),
 					Instance.Input("R", 0),
 					Instance.Input("S", 0)
 				)
 			}
-		
-		return Fragment(comb, specials=inst)
+		return Fragment(specials=inst)

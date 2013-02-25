@@ -1,3 +1,4 @@
+from migen.fhdl.specials import Memory
 from migen.bus import csr
 from migen.bank.description import *
 from migen.bank import csrgen
@@ -41,7 +42,8 @@ class CSRManager:
 		symtab = []
 		for name, what, instances in self.slots:
 			if isinstance(what, Memory):
-				symtab.append((name + "_mem", BOF_PERM_READ|BOF_PERM_WRITE, base, min(what.depth, 0x400)))
+				symtab.append((name + "_" + what.name_override,
+					BOF_PERM_READ|BOF_PERM_WRITE, base, min(what.depth, 0x400)))
 			else:
 				offset = 0
 				for register in what:

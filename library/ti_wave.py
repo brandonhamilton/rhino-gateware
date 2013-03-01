@@ -27,7 +27,7 @@ class WaveformMemory:
 		# data interface, in signal clock domain
 		for i in range(self.spc):
 			name = "value" + str(i)
-			setattr(self, name, Signal(name=name))
+			setattr(self, name, Signal(self.width, name=name))
 
 	def get_registers(self):
 		return [self._r_play_en, self._r_size, self._r_mult]

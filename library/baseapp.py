@@ -1,4 +1,5 @@
 import os
+import stat
 import subprocess
 
 from migen.fhdl import verilog
@@ -62,13 +63,16 @@ class GenericBaseApp:
 		os.chdir("build")
 		build_name = "top"
 		write_to_file(build_name + ".symtab", symtab)
+		bof_name = build_name + ".bof"
 		r = subprocess.call(["mkbof",
 			"-t", str(self.mkbof_hwrtyp),
 			"-s", build_name + ".symtab",
-			"-o", build_name + ".bof",
+			"-o", bof_name,
 			build_name + ".bin"])
 		if r != 0:
 			raise OSError("mkbof failed")
+		st = os.stat(bof_name)
+		os.chmod(bof_name, st.st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
 		os.chdir("..")
 
 class RhinoBaseApp(GenericBaseApp):

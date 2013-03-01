@@ -149,10 +149,10 @@ class _BaseDAC:
 		# registers are in the system clock domain
 		self._r_data_en = RegisterField("data_en", 1)
 		self._r_test_pattern_en = RegisterField("test_pattern_en", 1)
-		self._r_test_pattern_i0 = RegisterField("test_pattern_i0", width, reset=0x55aa)
-		self._r_test_pattern_q0 = RegisterField("test_pattern_q0", width, reset=0x55aa)
-		self._r_test_pattern_i1 = RegisterField("test_pattern_i1", width, reset=0x55aa)
-		self._r_test_pattern_q1 = RegisterField("test_pattern_q1", width, reset=0x55aa)
+		self._r_test_pattern_i0 = RegisterField("test_pattern_i0", width, reset=0x7AB6)
+		self._r_test_pattern_q0 = RegisterField("test_pattern_q0", width, reset=0xEA45)
+		self._r_test_pattern_i1 = RegisterField("test_pattern_i1", width, reset=0x1A16)
+		self._r_test_pattern_q1 = RegisterField("test_pattern_q1", width, reset=0xAAC6)
 		self._r_pulse_frame = RegisterRaw("pulse_frame", 1)
 
 		# register data transferred to signal clock domain

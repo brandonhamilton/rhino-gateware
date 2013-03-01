@@ -188,7 +188,7 @@ class _BaseDAC:
 
 class DAC(_BaseDAC):
 	def __init__(self, pins, serdesstrobe):
-		_BaseDAC.__init__(self, pins, serdesstrobe, False)
+		_BaseDAC.__init__(self, pins, serdesstrobe)
 
 		# in signal clock domain
 		width = 2*len(pins.dat_p)

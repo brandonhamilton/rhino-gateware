@@ -219,7 +219,7 @@ class DAC(_BaseDAC):
 				mq.eq(self.q)
 			),
 			If((frame_div == 0) & (pulse_frame_pending | self._test_pattern_en | self._data_en),
-				fr.eq(0x6)
+				fr.eq(0xf)
 			).Else(
 				fr.eq(0x0)
 			)
@@ -283,7 +283,7 @@ class DAC2X(_BaseDAC):
 				mq1.eq(self.q1)
 			),
 			If((frame_div == 0) & (pulse_frame_pending | self._test_pattern_en | self._data_en),
-				fr.eq(0x60)
+				fr.eq(0xf0)
 			).Else(
 				fr.eq(0x00)
 			)

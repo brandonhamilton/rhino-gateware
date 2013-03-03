@@ -146,6 +146,7 @@ class WaveformMemoryIn(FModule):
 		]
 		self.sync.signal += [
 			done.eq(0),
+			write_address.eq(0),
 			If(active,
 				write_address.eq(write_address + 1),
 				If(write_address == size - 1, 
@@ -162,18 +163,11 @@ class WaveformCollector(FModule):
 		adc_pins = baseapp.mplat.request("ti_adc")
 		width = 2*len(adc_pins.dat_a_p)
 
-		self._wm_a = WaveformMemoryIn(1024, width)
-		self._wm_b = WaveformMemoryIn(1024, width)
+		self._wm = WaveformMemoryIn(1024, 2*width)
 		self._adc = ADC(adc_pins)
 
-		registers = regprefix("a_", self._wm_a.get_registers()) \
-			+ regprefix("b_", self._wm_b.get_registers())
-		memories = memprefix("a_", self._wm_a.get_memories()) \
-			+ memprefix("b_", self._wm_b.get_memories())
-		baseapp.csrs.request("wc", UID_WAVEFORM_COLLECTOR, *registers, memories=memories)
+		baseapp.csrs.request("wc", UID_WAVEFORM_COLLECTOR, 
+			*self._wm.get_registers(), memories=self._wm.get_memories())
 
 	def build_fragment(self):
-		self.comb += [
-			self._wm_a.value.eq(self._adc.a),
-			self._wm_b.value.eq(self._adc.b)
-		]
+		self.comb += self._wm.value.eq(Cat(self._adc.a, self._adc.b))

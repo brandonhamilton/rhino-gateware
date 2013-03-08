@@ -13,7 +13,8 @@ class WaveformMemoryOut(FModule):
 		self.width = width
 		self.spc = spc
 
-		self._mem = Memory(self.width, self.depth)
+		self._mem_i = Memory(self.width, self.depth, name="mem_i")
+		self._mem_q = Memory(self.width, self.depth, name="mem_q")
 		
 		# registers are in the system clock domain
 		self._r_play_en = RegisterField("playback_en")
@@ -22,14 +23,16 @@ class WaveformMemoryOut(FModule):
 		
 		# data interface, in signal clock domain
 		for i in range(self.spc):
-			name = "value" + str(i)
+			name = "value_i" + str(i)
+			setattr(self, name, Signal(self.width, name=name))
+			name = "value_q" + str(i)
 			setattr(self, name, Signal(self.width, name=name))
 
 	def get_registers(self):
 		return [self._r_play_en, self._r_size, self._r_mult]
 
 	def get_memories(self):
-		return [self._mem]
+		return [self._mem_i, self._mem_q]
 		
 	def build_fragment(self):
 		# register data transferred to signal clock domain
@@ -42,12 +45,15 @@ class WaveformMemoryOut(FModule):
 			MultiReg(self._r_mult.field.r, "sys", mult, "signal"),
 		}
 		#
-		mem_ports = [self._mem.get_port(clock_domain="signal") 
+		mem_ports = [(self._mem_i.get_port(clock_domain="signal"),
+			self._mem_q.get_port(clock_domain="signal"))
 			for i in range(self.spc)]
-		for n, port in enumerate(mem_ports):
-			v_mem_a = Signal(bits_for(self.depth-1)+1, variable=True)
+		for n, (port_i, port_q) in enumerate(mem_ports):
+			nbits = bits_for(self.depth-1)+1
+			mem_a = Signal(nbits)
+			v_mem_a = Signal(nbits, variable=True)
 			self.sync.signal += [
-				v_mem_a.eq(port.adr),
+				v_mem_a.eq(mem_a),
 				If(~play_en,
 					v_mem_a.eq(n*mult)
 				).Else(
@@ -56,8 +62,13 @@ class WaveformMemoryOut(FModule):
 				If(v_mem_a >= size,
 					v_mem_a.eq(v_mem_a - size)
 				),
-				port.adr.eq(v_mem_a),
-				getattr(self, "value" + str(n)).eq(port.dat_r)
+				mem_a.eq(v_mem_a),
+				getattr(self, "value_i" + str(n)).eq(port_i.dat_r),
+				getattr(self, "value_q" + str(n)).eq(port_q.dat_r)
+			]
+			self.comb += [
+				port_i.adr.eq(mem_a),
+				port_q.adr.eq(mem_a)
 			]
 
 class WaveformGenerator(FModule):
@@ -69,29 +80,25 @@ class WaveformGenerator(FModule):
 		spc = 2 if self._double_dac else 1
 		dac_class = DAC2X if self._double_dac else DAC
 		
-		self._wm_i = WaveformMemoryOut(1024, width, spc)
-		self._wm_q = WaveformMemoryOut(1024, width, spc)
+		self._wm = WaveformMemoryOut(1024, width, spc)
 		self._dac = dac_class(dac_pins, baseapp.crg.dacio_strb)
 
-		registers = regprefix("i_", self._wm_i.get_registers()) \
-			+ regprefix("q_", self._wm_q.get_registers()) \
-			+ self._dac.get_registers()
-		memories = memprefix("i_", self._wm_i.get_memories()) \
-			+ memprefix("q_", self._wm_q.get_memories())
-		baseapp.csrs.request("wg", UID_WAVEFORM_GENERATOR, *registers, memories=memories)
+		registers = self._wm.get_registers() + self._dac.get_registers()
+		baseapp.csrs.request("wg", UID_WAVEFORM_GENERATOR,
+			*registers, memories=self._wm.get_memories())
 	
 	def build_fragment(self):
 		if self._double_dac:
 			self.comb += [
-				self._dac.i0.eq(self._wm_i.value0),
-				self._dac.q0.eq(self._wm_q.value0),
-				self._dac.i1.eq(self._wm_i.value1),
-				self._dac.q1.eq(self._wm_q.value1)
+				self._dac.i0.eq(self._wm.value_i0),
+				self._dac.q0.eq(self._wm.value_q0),
+				self._dac.i1.eq(self._wm.value_i1),
+				self._dac.q1.eq(self._wm.value_q1)
 			]
 		else:
 			self.comb += [
-				self._dac.i.eq(self._wm_i.value0),
-				self._dac.q.eq(self._wm_q.value0)
+				self._dac.i.eq(self._wm.value_i0),
+				self._dac.q.eq(self._wm.value_q0)
 			]
 
 class WaveformMemoryIn(FModule):

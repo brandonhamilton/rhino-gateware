@@ -100,6 +100,7 @@ class WaveformMemoryIn(FModule):
 		self.width = width
 
 		self._mem = Memory(self.width, self.depth)
+		self._mem.bus_read_only = True
 		
 		# registers are in the system clock domain
 		self._r_start = RegisterRaw("start")

@@ -1,20 +1,20 @@
 from migen.fhdl.structure import *
 from migen.fhdl.specials import Memory
-from migen.fhdl.autofragment import FModule
+from migen.fhdl.module import Module
 from migen.bank.description import *
 from migen.genlib.cdc import MultiReg, PulseSynchronizer
 
 from library.uid import UID_WAVEFORM_GENERATOR, UID_WAVEFORM_COLLECTOR
 from library.ti_io import DAC, DAC2X, ADC
 
-class WaveformMemoryOut(FModule):
+class WaveformMemoryOut(Module, AutoReg):
 	def __init__(self, depth, width, spc):
 		self.depth = depth
 		self.width = width
 		self.spc = spc
 
-		self._mem_i = Memory(self.width, self.depth, name="mem_i")
-		self._mem_q = Memory(self.width, self.depth, name="mem_q")
+		self.specials._mem_i = Memory(self.width, self.depth, name="mem_i")
+		self.specials._mem_q = Memory(self.width, self.depth, name="mem_q")
 		
 		# registers are in the system clock domain
 		self._r_play_en = RegisterField("playback_en")
@@ -28,13 +28,8 @@ class WaveformMemoryOut(FModule):
 			name = "value_q" + str(i)
 			setattr(self, name, Signal(self.width, name=name))
 
-	def get_registers(self):
-		return [self._r_play_en, self._r_size, self._r_mult]
+		###
 
-	def get_memories(self):
-		return [self._mem_i, self._mem_q]
-		
-	def build_fragment(self):
 		# register data transferred to signal clock domain
 		play_en = Signal()
 		size = Signal(bits_for(self.depth))
@@ -71,24 +66,25 @@ class WaveformMemoryOut(FModule):
 				port_q.adr.eq(mem_a)
 			]
 
-class WaveformGenerator(FModule):
+class WaveformGenerator(Module):
 	def __init__(self, baseapp):
 		dac_pins = baseapp.mplat.request("ti_dac")
 		width = 2*len(dac_pins.dat_p)
 		
-		self._double_dac = baseapp.double_dac
-		spc = 2 if self._double_dac else 1
-		dac_class = DAC2X if self._double_dac else DAC
+		_double_dac = baseapp.double_dac
+		spc = 2 if _double_dac else 1
+		dac_class = DAC2X if _double_dac else DAC
 		
-		self._wm = WaveformMemoryOut(1024, width, spc)
-		self._dac = dac_class(dac_pins, baseapp.crg.dacio_strb)
+		self.submodules._wm = WaveformMemoryOut(1024, width, spc)
+		self.submodules._dac = dac_class(dac_pins, baseapp.crg.dacio_strb)
 
 		registers = self._wm.get_registers() + self._dac.get_registers()
 		baseapp.csrs.request("wg", UID_WAVEFORM_GENERATOR,
 			*registers, memories=self._wm.get_memories())
 	
-	def build_fragment(self):
-		if self._double_dac:
+		###
+	
+		if _double_dac:
 			self.comb += [
 				self._dac.i0.eq(self._wm.value_i0),
 				self._dac.q0.eq(self._wm.value_q0),
@@ -101,12 +97,12 @@ class WaveformGenerator(FModule):
 				self._dac.q.eq(self._wm.value_q0)
 			]
 
-class WaveformMemoryIn(FModule):
+class WaveformMemoryIn(Module, AutoReg):
 	def __init__(self, depth, width):
 		self.depth = depth
 		self.width = width
 
-		self._mem = Memory(self.width, self.depth)
+		self.specials._mem = Memory(self.width, self.depth)
 		self._mem.bus_read_only = True
 		
 		# registers are in the system clock domain
@@ -117,23 +113,18 @@ class WaveformMemoryIn(FModule):
 		# data interface, in signal clock domain
 		self.value = Signal(self.width)
 
-	def get_registers(self):
-		return [self._r_start, self._r_busy, self._r_size]
+		###
 
-	def get_memories(self):
-		return [self._mem]
-		
-	def build_fragment(self):
 		# register controls transferred to signal clock domain
 		start = Signal()
 		done = Signal()
 		size = Signal(bits_for(self.depth))
-		self._ps_start = PulseSynchronizer("sys", "signal")
+		self.submodules._ps_start = PulseSynchronizer("sys", "signal")
 		self.comb += [
 			self._ps_start.i.eq(self._r_start.re),
 			start.eq(self._ps_start.o)
 		]
-		self._ps_done = PulseSynchronizer("signal", "sys")
+		self.submodules._ps_done = PulseSynchronizer("signal", "sys")
 		self.comb += self._ps_done.i.eq(done)
 		self.sync += [
 			If(self._r_start.re,
@@ -166,16 +157,15 @@ class WaveformMemoryIn(FModule):
 			)
 		]
 		
-class WaveformCollector(FModule):
+class WaveformCollector(Module):
 	def __init__(self, baseapp):
 		adc_pins = baseapp.mplat.request("ti_adc")
 		width = 2*len(adc_pins.dat_a_p)
 
-		self._wm = WaveformMemoryIn(1024, 2*width)
-		self._adc = ADC(adc_pins)
+		self.submodules._wm = WaveformMemoryIn(1024, 2*width)
+		self.submodules._adc = ADC(adc_pins)
 
 		baseapp.csrs.request("wc", UID_WAVEFORM_COLLECTOR, 
 			*self._wm.get_registers(), memories=self._wm.get_memories())
 
-	def build_fragment(self):
 		self.comb += self._wm.value.eq(Cat(self._adc.a, self._adc.b))

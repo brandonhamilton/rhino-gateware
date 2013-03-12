@@ -16,15 +16,15 @@ UID_VERMEER = 0x100
 class UID:
 	def __init__(self, uid):
 		self.uid = uid
-		self.reg_magic = RegisterField("magic", 32, READ_ONLY, WRITE_ONLY)
-		self.reg_uid = RegisterField("uid", 32, READ_ONLY, WRITE_ONLY)
+		self._r_magic = RegisterField(32, READ_ONLY, WRITE_ONLY)
+		self._r_uid = RegisterField(32, READ_ONLY, WRITE_ONLY)
 	
 	def get_registers(self):
-		return [self.reg_magic, self.reg_uid]
+		return [self._r_magic, self._r_uid]
 	
 	def get_fragment(self):
 		comb = [
-			self.reg_magic.field.w.eq(MAGIC),
-			self.reg_uid.field.w.eq(self.uid)
+			self._r_magic.field.w.eq(MAGIC),
+			self._r_uid.field.w.eq(self.uid)
 		]
 		return Fragment(comb)

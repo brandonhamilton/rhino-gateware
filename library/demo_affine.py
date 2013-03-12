@@ -12,15 +12,15 @@ class DemoAffine:
 		self.port_in = baseapp.streams.request(stream_from_name, FROM_EXT)
 		self.port_out = baseapp.streams.request(stream_to_name, TO_EXT)
 		width = len(self.port_in.data)
-		self.reg_a = RegisterField("a", width)
-		self.reg_b = RegisterField("b", width)
-		baseapp.csrs.request(csr_name, UID_DEMO_AFFINE, self.reg_a, self.reg_b)
+		self._r_a = RegisterField(width)
+		self._r_b = RegisterField(width)
+		baseapp.csrs.request(csr_name, UID_DEMO_AFFINE, self._r_a, self._r_b)
 		
 	def get_fragment(self):
 		width = len(self.port_in.data)
 		
 		pmac = []
-		result = self.reg_a.field.r*self.port_in.data + self.reg_b.field.r
+		result = self._r_a.field.r*self.port_in.data + self._r_b.field.r
 		for stage in range(self.pipeline_depth):
 			iresult = Signal(width)
 			pmac.append(iresult.eq(result))

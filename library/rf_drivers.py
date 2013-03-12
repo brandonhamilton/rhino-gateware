@@ -34,12 +34,12 @@ class I2CDataWriter:
 		self.fsm = FSM("WAIT_DATA", "START_CONDITION", "TRANSFER_DATA", "ACK", "STOP_CONDITION")
 		
 		# registers
-		self._pos_end_cycle = RegisterField("pos_end_cycle", self.cycle_bits, reset=240)
-		self._pos_clk_high = RegisterField("pos_clk_high", self.cycle_bits, reset=140)
-		self._pos_data = RegisterField("pos_data", self.cycle_bits, reset=70)
-		self._pos_start = RegisterField("pos_start", self.cycle_bits, reset=170)
-		self._pos_stop_low = RegisterField("pos_stop_low", self.cycle_bits, reset=70)
-		self._pos_stop_high = RegisterField("pos_stop_high", self.cycle_bits, reset=210)
+		self._pos_end_cycle = RegisterField(self.cycle_bits, reset=240)
+		self._pos_clk_high = RegisterField(self.cycle_bits, reset=140)
+		self._pos_data = RegisterField(self.cycle_bits, reset=70)
+		self._pos_start = RegisterField(self.cycle_bits, reset=170)
+		self._pos_stop_low = RegisterField(self.cycle_bits, reset=70)
+		self._pos_stop_high = RegisterField(self.cycle_bits, reset=210)
 		
 	def get_registers(self):
 		return [self._pos_end_cycle,
@@ -164,12 +164,12 @@ class BBI2CDataWriter(I2CDataWriter):
 		self.sda = TSTriple(reset_o=1, reset_oe=1)
 		self.scl = Signal()
 
-		self._bb_enable = RegisterField("bb_enable")
-		self._bb_sda_oe = Field("sda_oe")
-		self._bb_sda_o = Field("sda_o")
-		self._bb_scl = Field("scl")
-		self._bb_out = RegisterFields("bb_out", [self._bb_sda_oe, self._bb_sda_o, self._bb_scl])
-		self._bb_sda_in = RegisterField("bb_sda_in", access_dev=WRITE_ONLY, access_bus=READ_ONLY)
+		self._bb_enable = RegisterField()
+		self._bb_sda_oe = Field()
+		self._bb_sda_o = Field()
+		self._bb_scl = Field()
+		self._bb_out = RegisterFields(self._bb_sda_oe, self._bb_sda_o, self._bb_scl)
+		self._bb_sda_in = RegisterField(1, READ_ONLY, WRITE_ONLY)
 
 	def get_registers(self):
 		return [self._bb_enable, self._bb_out, self._bb_sda_in] \
@@ -246,8 +246,8 @@ class SerialDataWriter:
 		self.end_action = [self.fsm.next_state(self.fsm.WAIT_DATA)]
 		
 		# registers
-		self._pos_end_cycle = RegisterField("pos_end_cycle", self.cycle_bits, reset=20)
-		self._pos_data = RegisterField("pos_data", self.cycle_bits, reset=0)
+		self._pos_end_cycle = RegisterField(self.cycle_bits, reset=20)
+		self._pos_data = RegisterField(self.cycle_bits, reset=0)
 	
 	def get_registers(self):
 		return [self._pos_end_cycle, self._pos_data]
@@ -329,8 +329,8 @@ class PE43602Driver(Actor):
 		self.clk = self._sdw.clk
 		self.le = Signal()
 		
-		self._pos_le_high = RegisterField("pos_le_high", self._sdw.cycle_bits, reset=5)
-		self._pos_le_low = RegisterField("pos_le_low", self._sdw.cycle_bits, reset=15)
+		self._pos_le_high = RegisterField(self._sdw.cycle_bits, reset=5)
+		self._pos_le_low = RegisterField(self._sdw.cycle_bits, reset=15)
 		
 		Actor.__init__(self, ("program", Sink, [("attn", 6)]))
 	
@@ -410,12 +410,12 @@ class SPIWriter:
 		self.miso_synced = Signal()
 		
 		# bitbang control
-		self._bb_enable = RegisterField("bb_enable")
-		self._bb_mosi = Field("mosi")
-		self._bb_clk = Field("clk")
-		self._bb_csn = Field("csn", reset=1)
-		self._bb_out = RegisterFields("bb_out", [self._bb_mosi, self._bb_csn, self._bb_clk])
-		self._bb_miso = RegisterField("bb_miso", access_dev=WRITE_ONLY, access_bus=READ_ONLY)
+		self._bb_enable = RegisterField()
+		self._bb_mosi = Field()
+		self._bb_clk = Field()
+		self._bb_csn = Field(reset=1)
+		self._bb_out = RegisterFields(self._bb_mosi, self._bb_csn, self._bb_clk)
+		self._bb_miso = RegisterField(1, READ_ONLY, WRITE_ONLY)
 		
 	def get_registers(self):
 		return [self._bb_enable, self._bb_out, self._bb_miso] + self.sdw.get_registers()

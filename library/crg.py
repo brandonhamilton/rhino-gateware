@@ -80,9 +80,9 @@ TIMESPEC "TSclk_freerun" = PERIOD "GRPclk_freerun" """+str(float(self._free_run_
 TIMESPEC "TSclk_adc" = PERIOD "GRPclk_adc" """+str(float(self._adc_period))+""" ns HIGH 50%;
 """, clk_freerun=self._free_run_clk.p, clk_adc=self._signal_clks.adc_clk_p)
 		
-		self.reg_pll_enable = RegisterField("pll_enable")
-		self.reg_pll_locked = RegisterField("pll_locked", access_bus=READ_ONLY, access_dev=WRITE_ONLY)
-		baseapp.csrs.request(csr_name, UID_CRG_RADAR, self.reg_pll_enable, self.reg_pll_locked)
+		self._r_pll_enable = RegisterField()
+		self._r_pll_locked = RegisterField(1, READ_ONLY, WRITE_ONLY)
+		baseapp.csrs.request(csr_name, UID_CRG_RADAR, self._r_pll_enable, self._r_pll_locked)
 	
 	def get_fragment(self):
 		# receive differential free-running clock and generate 120MHz system clock
@@ -237,8 +237,8 @@ TIMESPEC "TSclk_adc" = PERIOD "GRPclk_adc" """+str(float(self._adc_period))+""" 
 		)
 		
 		comb = [
-			pll_reset.eq(~self.reg_pll_enable.field.r),
-			self.reg_pll_locked.field.w.eq(pll_locked)
+			pll_reset.eq(~self._r_pll_enable.field.r),
+			self._r_pll_locked.field.w.eq(pll_locked)
 		]
 		
 		return Fragment(comb, specials={freerun_buffer,

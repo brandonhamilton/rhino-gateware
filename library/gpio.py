@@ -10,12 +10,13 @@ class GPIO:
 		self.fields = []
 		for signal, direction, name in self.signals:
 			if direction == INPUT:
-				self.fields.append(Field(name, len(signal), READ_ONLY, WRITE_ONLY))
+				self.fields.append(Field(len(signal), READ_ONLY, WRITE_ONLY, name=name))
 			elif direction == OUTPUT:
-				self.fields.append(Field(name, len(signal), READ_WRITE, READ_ONLY))
+				self.fields.append(Field(len(signal), READ_WRITE, READ_ONLY, name=name))
 			else:
 				raise TypeError
-		baseapp.csrs.request(csr_name, uid, RegisterFields("gpio", self.fields))
+		r_gpio = RegisterFields(*self.fields)
+		baseapp.csrs.request(csr_name, uid, r_gpio)
 	
 	def get_fragment(self):
 		comb = []

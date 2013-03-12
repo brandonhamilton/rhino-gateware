@@ -17,9 +17,9 @@ class WaveformMemoryOut(Module, AutoReg):
 		self.specials._mem_q = Memory(self.width, self.depth, name="mem_q")
 		
 		# registers are in the system clock domain
-		self._r_play_en = RegisterField("playback_en")
-		self._r_size = RegisterField("size", bits_for(self.depth), reset=self.depth)
-		self._r_mult = RegisterField("mult", bits_for(self.depth), reset=1)
+		self._r_playback_en = RegisterField()
+		self._r_size = RegisterField(bits_for(self.depth), reset=self.depth)
+		self._r_mult = RegisterField(bits_for(self.depth), reset=1)
 		
 		# data interface, in signal clock domain
 		for i in range(self.spc):
@@ -35,7 +35,7 @@ class WaveformMemoryOut(Module, AutoReg):
 		size = Signal(bits_for(self.depth))
 		mult = Signal(bits_for(self.depth))
 		self.specials += {
-			MultiReg(self._r_play_en.field.r, "sys", play_en, "signal"),
+			MultiReg(self._r_playback_en.field.r, "sys", play_en, "signal"),
 			MultiReg(self._r_size.field.r, "sys", size, "signal"),
 			MultiReg(self._r_mult.field.r, "sys", mult, "signal"),
 		}
@@ -106,9 +106,9 @@ class WaveformMemoryIn(Module, AutoReg):
 		self._mem.bus_read_only = True
 		
 		# registers are in the system clock domain
-		self._r_start = RegisterRaw("start")
-		self._r_busy = RegisterField("busy", access_bus=READ_ONLY, access_dev=WRITE_ONLY)
-		self._r_size = RegisterField("size", bits_for(self.depth), reset=self.depth)
+		self._r_start = RegisterRaw()
+		self._r_busy = RegisterField(1, READ_ONLY, WRITE_ONLY)
+		self._r_size = RegisterField(bits_for(self.depth), reset=self.depth)
 		
 		# data interface, in signal clock domain
 		self.value = Signal(self.width)

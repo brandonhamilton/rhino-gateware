@@ -13,8 +13,8 @@ class WaveformMemoryOut(Module, AutoReg):
 		self.width = width
 		self.spc = spc
 
-		self.specials._mem_i = Memory(self.width, self.depth, name="mem_i")
-		self.specials._mem_q = Memory(self.width, self.depth, name="mem_q")
+		self.specials._mem_i = Memory(self.width, self.depth)
+		self.specials._mem_q = Memory(self.width, self.depth)
 		
 		# registers are in the system clock domain
 		self._r_playback_en = RegisterField()

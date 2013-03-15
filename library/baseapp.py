@@ -55,10 +55,7 @@ class GenericBaseApp:
 		return r
 
 	def build(self):
-		f = self.get_fragment()
-		clock_domains = self.crg.get_clock_domains()
-		self.mplat.build(f,	clock_domains=clock_domains)
-
+		self.mplat.build(self.get_fragment())
 		symtab = self.get_formatted_symtab()
 		os.chdir("build")
 		build_name = "top"

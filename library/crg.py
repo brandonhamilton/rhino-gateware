@@ -2,28 +2,25 @@ from fractions import Fraction
 
 from migen.fhdl.structure import *
 from migen.fhdl.specials import Instance
+from migen.fhdl.module import Module
 from migen.bank.description import *
-from mibuild.crg import CRG
 
 from library.uid import UID_CRG_RADAR
 
-class CRG100(CRG):
+class CRG100(Module):
 	def __init__(self, baseapp):
-		self.cd = ClockDomain("sys")
+		self.clock_domains.cd_sys = ClockDomain()
 		self._clk = baseapp.mplat.request("clk100")
-		
 		baseapp.mplat.add_platform_command("""
 NET "{clk_100}" TNM_NET = "GRPclk_100";
 TIMESPEC "TSclk_100" = PERIOD "GRPclk_100" 10 ns HIGH 50%;
 """, clk_100=self._clk.p)
-
-	def get_fragment(self):
-		ibufg = Instance("IBUFGDS",
+		self.specials += Instance("IBUFGDS",
 			Instance.Input("I", self._clk.p),
 			Instance.Input("IB", self._clk.n),
-			Instance.Output("O", self.cd.clk)
+			Instance.Output("O", self.cd_sys.clk)
 		)
-		srl_reset = Instance("SRL16E",
+		self.specials += Instance("SRL16E",
 			Instance.Parameter("INIT", 0xffff),
 			Instance.ClockPort("CLK"),
 			Instance.Input("CE", 1),
@@ -32,9 +29,8 @@ TIMESPEC "TSclk_100" = PERIOD "GRPclk_100" 10 ns HIGH 50%;
 			Instance.Input("A1", 1),
 			Instance.Input("A2", 1),
 			Instance.Input("A3", 1),
-			Instance.Output("Q", self.cd.rst)
+			Instance.Output("Q", self.cd_sys.rst)
 		)
-		return Fragment(specials={ibufg, srl_reset})
 
 # Clock generator for radar-type applications using TI ADC/DAC
 #
@@ -58,7 +54,7 @@ TIMESPEC "TSclk_100" = PERIOD "GRPclk_100" 10 ns HIGH 50%;
 #      Channels are multiplexed
 #      => Generate 4x (for DAC clock pins)
 #         and 8x (for OSERDES) clocks
-class CRGRadar(CRG):
+class CRGRadar(Module):
 	def __init__(self, baseapp, free_run_clk, free_run_period, signal_clks, adc_period,
 	  csr_name="crg", double_dac=True):
 		self._free_run_clk = free_run_clk
@@ -67,10 +63,10 @@ class CRGRadar(CRG):
 		self._adc_period = adc_period
 		self._double_dac = double_dac
 		
-		self.cd_sys = ClockDomain("sys")
-		self.cd_signal = ClockDomain("signal")
-		self.cd_dac = ClockDomain("dac")
-		self.cd_dacio = ClockDomain("dacio")
+		self.clock_domains.cd_sys = ClockDomain()
+		self.clock_domains.cd_signal = ClockDomain()
+		self.clock_domains.cd_dac = ClockDomain()
+		self.clock_domains.cd_dacio = ClockDomain()
 		self.dacio_strb = Signal()
 		
 		baseapp.mplat.add_platform_command("""
@@ -84,10 +80,9 @@ TIMESPEC "TSclk_adc" = PERIOD "GRPclk_adc" """+str(float(self._adc_period))+""" 
 		self._r_pll_locked = RegisterField(1, READ_ONLY, WRITE_ONLY)
 		baseapp.csrs.request(csr_name, UID_CRG_RADAR, self._r_pll_enable, self._r_pll_locked)
 	
-	def get_fragment(self):
 		# receive differential free-running clock and generate 120MHz system clock
 		freerun_buffered = Signal()
-		freerun_buffer = Instance("IBUFDS",
+		self.specials += Instance("IBUFDS",
 			Instance.Input("I", self._free_run_clk.p),
 			Instance.Input("IB", self._free_run_clk.n),
 			Instance.Output("O", freerun_buffered)
@@ -95,7 +90,7 @@ TIMESPEC "TSclk_adc" = PERIOD "GRPclk_adc" """+str(float(self._adc_period))+""" 
 		sys_period = Fraction(1000, 120)
 		sys_ratio = Fraction(self._free_run_period/sys_period)
 		sys_clk_unbuffered = Signal()
-		dcm_sys = Instance("DCM_CLKGEN",
+		self.specials += Instance("DCM_CLKGEN",
 			Instance.Parameter("CLKFX_DIVIDE", sys_ratio.denominator),
 			Instance.Parameter("CLKFX_MD_MAX", float(sys_ratio)),
 			Instance.Parameter("CLKFX_MULTIPLY", sys_ratio.numerator),
@@ -109,14 +104,14 @@ TIMESPEC "TSclk_adc" = PERIOD "GRPclk_adc" """+str(float(self._adc_period))+""" 
 			Instance.Input("PROGEN", 0),
 			Instance.Input("RST", 0)
 		)
-		bufg_sys = Instance("BUFG",
+		self.specials += Instance("BUFG",
 			Instance.Input("I", sys_clk_unbuffered),
 			Instance.Output("O", self.cd_sys.clk)
 		)
 		
 		# receive differential ADC clock and generate phase aligned clocks
 		adc_buffered = Signal()
-		adc_buffer = Instance("IBUFGDS",
+		self.specials += Instance("IBUFGDS",
 			Instance.Input("I", self._signal_clks.adc_clk_p),
 			Instance.Input("IB", self._signal_clks.adc_clk_n),
 			Instance.Output("O", adc_buffered)
@@ -128,7 +123,7 @@ TIMESPEC "TSclk_adc" = PERIOD "GRPclk_adc" """+str(float(self._adc_period))+""" 
 		pll_out0 = Signal()
 		pll_out1 = Signal()
 		pll_out2 = Signal()
-		pll = Instance("PLL_BASE",
+		self.specials += Instance("PLL_BASE",
 			Instance.Parameter("BANDWIDTH", "OPTIMIZED"),
 			Instance.Parameter("CLKFBOUT_MULT", 8),
 			Instance.Parameter("CLKFBOUT_PHASE", 180.0),
@@ -181,21 +176,21 @@ TIMESPEC "TSclk_adc" = PERIOD "GRPclk_adc" """+str(float(self._adc_period))+""" 
 			
 			Instance.Input("RST", pll_reset)
 		)
-		bufg_fb = Instance("BUFG",
+		self.specials += Instance("BUFG",
 			Instance.Input("I", pll_fb2),
 			Instance.Output("O", pll_fb1)
 		)
-		bufg_signal = Instance("BUFG",
+		self.specials += Instance("BUFG",
 			Instance.Input("I", pll_out0),
 			Instance.Output("O", self.cd_signal.clk)
 		)
-		bufg_dac = Instance("BUFG",
+		self.specials += Instance("BUFG",
 			Instance.Input("I", pll_out2),
 			Instance.Output("O", self.cd_dac.clk)
 		)
 		
 		# generate strobe and DAC I/O clock
-		bufpll_dacio = Instance("BUFPLL",
+		self.specials += Instance("BUFPLL",
 			Instance.Parameter("DIVIDE", 8 if self._double_dac else 4),
 			Instance.Input("PLLIN", pll_out1),
 			Instance.ClockPort("GCLK", "signal"),
@@ -207,7 +202,7 @@ TIMESPEC "TSclk_adc" = PERIOD "GRPclk_adc" """+str(float(self._adc_period))+""" 
 		
 		# forward clock to DAC
 		dac_clk_se = Signal()
-		oddr2_dac = Instance("ODDR2",
+		self.specials += Instance("ODDR2",
 			Instance.Parameter("DDR_ALIGNMENT", "NONE"),
 			Instance.Output("Q", dac_clk_se),
 			Instance.ClockPort("C0", "dac", invert=False),
@@ -218,13 +213,13 @@ TIMESPEC "TSclk_adc" = PERIOD "GRPclk_adc" """+str(float(self._adc_period))+""" 
 			Instance.Input("R", 0),
 			Instance.Input("S", 0)
 		)
-		obufds_dac = Instance("OBUFDS",
+		self.specials += Instance("OBUFDS",
 			Instance.Input("I", dac_clk_se),
 			Instance.Output("O", self._signal_clks.dac_clk_p),
 			Instance.Output("OB", self._signal_clks.dac_clk_n)
 		)
 		
-		srl_reset = Instance("SRL16E",
+		self.specials += Instance("SRL16E",
 			Instance.Parameter("INIT", 0xffff),
 			Instance.ClockPort("CLK"),
 			Instance.Input("CE", 1),
@@ -236,15 +231,10 @@ TIMESPEC "TSclk_adc" = PERIOD "GRPclk_adc" """+str(float(self._adc_period))+""" 
 			Instance.Output("Q", self.cd_sys.rst)
 		)
 		
-		comb = [
+		self.comb += [
 			pll_reset.eq(~self._r_pll_enable.field.r),
 			self._r_pll_locked.field.w.eq(pll_locked)
 		]
-		
-		return Fragment(comb, specials={freerun_buffer,
-			dcm_sys, bufg_sys, adc_buffer, pll, bufg_fb,
-			bufg_signal, bufg_dac, bufpll_dacio, oddr2_dac,
-			obufds_dac, srl_reset})
 
 
 # Clock generation for the FMC150

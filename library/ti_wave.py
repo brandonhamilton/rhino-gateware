@@ -35,9 +35,9 @@ class WaveformMemoryOut(Module, AutoReg):
 		size = Signal(bits_for(self.depth))
 		mult = Signal(bits_for(self.depth))
 		self.specials += {
-			MultiReg(self._r_playback_en.field.r, "sys", play_en, "signal"),
-			MultiReg(self._r_size.field.r, "sys", size, "signal"),
-			MultiReg(self._r_mult.field.r, "sys", mult, "signal"),
+			MultiReg(self._r_playback_en.field.r, play_en, "signal"),
+			MultiReg(self._r_size.field.r, size, "signal"),
+			MultiReg(self._r_mult.field.r, mult, "signal"),
 		}
 		#
 		mem_ports = [(self._mem_i.get_port(clock_domain="signal"),
@@ -133,7 +133,7 @@ class WaveformMemoryIn(Module, AutoReg):
 				self._r_busy.field.w.eq(0)
 			)
 		]
-		self.specials += MultiReg(self._r_size.field.r, "sys", size, "signal")
+		self.specials += MultiReg(self._r_size.field.r, size, "signal")
 		#
 		active = Signal()
 		write_address = Signal(max=self.depth)

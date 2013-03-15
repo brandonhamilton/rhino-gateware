@@ -177,12 +177,12 @@ class _BaseDAC:
 			self._pulse_frame.eq(ps.o)
 		]
 		cdc = {
-			MultiReg(self._r_data_en.field.r, "sys", self._data_en, "signal"),
-			MultiReg(self._r_test_pattern_en.field.r, "sys", self._test_pattern_en, "signal"),
-			MultiReg(self._r_test_pattern_i0.field.r, "sys", self._test_pattern_i0, "signal"),
-			MultiReg(self._r_test_pattern_q0.field.r, "sys", self._test_pattern_q0, "signal"),
-			MultiReg(self._r_test_pattern_i1.field.r, "sys", self._test_pattern_i1, "signal"),
-			MultiReg(self._r_test_pattern_q1.field.r, "sys", self._test_pattern_q1, "signal")
+			MultiReg(self._r_data_en.field.r, self._data_en, "signal"),
+			MultiReg(self._r_test_pattern_en.field.r, self._test_pattern_en, "signal"),
+			MultiReg(self._r_test_pattern_i0.field.r, self._test_pattern_i0, "signal"),
+			MultiReg(self._r_test_pattern_q0.field.r, self._test_pattern_q0, "signal"),
+			MultiReg(self._r_test_pattern_i1.field.r, self._test_pattern_i1, "signal"),
+			MultiReg(self._r_test_pattern_q1.field.r, self._test_pattern_q1, "signal")
 		}
 		return ps.get_fragment() + Fragment(comb, specials=cdc)
 

@@ -19,8 +19,8 @@ def _serialize4_ds(strobe, inputs, out_p, out_n):
 			Instance.Input("D1", inputs[0]),
 			Instance.Output("OQ", single_ended),
 			
-			Instance.ClockPort("CLK0", "dacio"),
-			Instance.ClockPort("CLKDIV", "signal"),
+			Instance.Input("CLK0", ClockSignal("dacio")),
+			Instance.Input("CLKDIV", ClockSignal("signal")),
 			Instance.Input("IOCE", strobe),
 			
 			Instance.Input("OCE", 1),
@@ -69,8 +69,8 @@ def _serialize8_ds(strobe, inputs, out_p, out_n):
 			Instance.Input("D1", inputs[4]),
 			Instance.Output("OQ", single_ended),
 			
-			Instance.ClockPort("CLK0", "dacio"),
-			Instance.ClockPort("CLKDIV", "signal"),
+			Instance.Input("CLK0", ClockSignal("dacio")),
+			Instance.Input("CLKDIV", ClockSignal("signal")),
 			Instance.Input("IOCE", strobe),
 			
 			Instance.Input("OCE", 1),
@@ -107,8 +107,8 @@ def _serialize8_ds(strobe, inputs, out_p, out_n):
 			Instance.Input("D1", inputs[0]),
 			Instance.Output("OQ"),
 			
-			Instance.ClockPort("CLK0", "dacio"),
-			Instance.ClockPort("CLKDIV", "signal"),
+			Instance.Input("CLK0", ClockSignal("dacio")),
+			Instance.Input("CLKDIV", ClockSignal("signal")),
 			Instance.Input("IOCE", strobe),
 			
 			Instance.Input("OCE", 1),
@@ -348,8 +348,8 @@ class ADC:
 					Instance.Output("Q0", self.a[2*i+1]),
 					Instance.Output("Q1", self.a[2*i]),
 					
-					Instance.ClockPort("C0", "signal", invert=False),
-					Instance.ClockPort("C1", "signal", invert=True),
+					Instance.Input("C0", ClockSignal("signal")),
+					Instance.Input("C1", ~ClockSignal("signal")),
 					Instance.Input("CE", 1),
 					Instance.Input("R", 0),
 					Instance.Input("S", 0)
@@ -364,8 +364,8 @@ class ADC:
 					Instance.Output("Q0", self.b[2*i+1]),
 					Instance.Output("Q1", self.b[2*i]),
 					
-					Instance.ClockPort("C0", "signal", invert=False),
-					Instance.ClockPort("C1", "signal", invert=True),
+					Instance.Input("C0", ClockSignal("signal")),
+					Instance.Input("C1", ~ClockSignal("signal")),
 					Instance.Input("CE", 1),
 					Instance.Input("R", 0),
 					Instance.Input("S", 0)

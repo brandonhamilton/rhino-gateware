@@ -22,8 +22,8 @@ class GPMC:
 
 	def get_fragment(self):
 		inst = Instance("gpmc",
-			Instance.ClockPort("sys_clk"),
-			Instance.ResetPort("sys_rst"),
+			Instance.Input("sys_clk", ClockSignal()),
+			Instance.Input("sys_rst", ResetSignal()),
 			
 			Instance.Output("csr_adr", self.csr.adr),
 			Instance.Output("csr_we", self.csr.we),

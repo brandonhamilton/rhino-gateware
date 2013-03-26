@@ -1,4 +1,5 @@
 from migen.fhdl.structure import *
+from migen.fhdl.module import Module
 from migen.fhdl.specials import Instance
 from migen.bank.description import *
 from migen.genlib.cdc import *
@@ -313,29 +314,29 @@ class DAC2X(_BaseDAC):
 		
 		return _BaseDAC.get_fragment(self) + Fragment(comb, sync={"signal": sync}, specials=inst)
 
-class ADC:
-	def __init__(self, pins):
-		self._pins = pins
-		
-		width = 2*len(self._pins.dat_a_p)
-		# data interface, in signal clock domain
-		self.a = Signal(width)
-		self.b = Signal(width)
+class ADC(Module):
+	def __init__(self, pads):
+		n_io = len(pads.dat_a_p)
+		self.a = Signal(2*n_io)
+		self.b = Signal(2*n_io)
 	
-	def get_fragment(self):
-		inst = set()
-		for i in range(len(self._pins.dat_a_p)):
+		###
+
+		a_noninvert = Signal(2*n_io)
+		b_noninvert = Signal(2*n_io)
+
+		for i in range(n_io):
 			single_ended_a = Signal()
 			single_ended_b = Signal()
-			inst |= {
+			self.specials += {
 				Instance("IBUFDS",
-					Instance.Input("I", self._pins.dat_a_p[i]),
-					Instance.Input("IB", self._pins.dat_a_n[i]),
+					Instance.Input("I", pads.dat_a_p[i]),
+					Instance.Input("IB", pads.dat_a_n[i]),
 					Instance.Output("O", single_ended_a)
 				),
 				Instance("IBUFDS",
-					Instance.Input("I", self._pins.dat_b_p[i]),
-					Instance.Input("IB", self._pins.dat_b_n[i]),
+					Instance.Input("I", pads.dat_b_p[i]),
+					Instance.Input("IB", pads.dat_b_n[i]),
 					Instance.Output("O", single_ended_b)
 				),
 				Instance("IDDR2",
@@ -345,8 +346,8 @@ class ADC:
 					Instance.Parameter("SRTYPE", "SYNC"),
 					
 					Instance.Input("D", single_ended_a),
-					Instance.Output("Q0", self.a[2*i+1]),
-					Instance.Output("Q1", self.a[2*i]),
+					Instance.Output("Q0", a_noninvert[2*i+1]),
+					Instance.Output("Q1", a_noninvert[2*i]),
 					
 					Instance.Input("C0", ClockSignal("signal")),
 					Instance.Input("C1", ~ClockSignal("signal")),
@@ -361,8 +362,8 @@ class ADC:
 					Instance.Parameter("SRTYPE", "SYNC"),
 					
 					Instance.Input("D", single_ended_b),
-					Instance.Output("Q0", self.b[2*i+1]),
-					Instance.Output("Q1", self.b[2*i]),
+					Instance.Output("Q0", b_noninvert[2*i+1]),
+					Instance.Output("Q1", b_noninvert[2*i]),
 					
 					Instance.Input("C0", ClockSignal("signal")),
 					Instance.Input("C1", ~ClockSignal("signal")),
@@ -371,4 +372,27 @@ class ADC:
 					Instance.Input("S", 0)
 				)
 			}
-		return Fragment(specials=inst)
+
+		try:
+			inversions_a = pads.platform_info["inverted_pairs_a"]
+		except (AttributeError, KeyError):
+			inversions_a = set()
+		try:
+			inversions_b = pads.platform_info["inverted_pairs_b"]
+		except (AttributeError, KeyError):
+			inversions_b = set()
+		bits_a = []
+		bits_b = []
+		for i in range(2*n_io):
+			if i in inversions_a:
+				bits_a.append(~a_noninvert[i])
+			else:
+				bits_a.append(a_noninvert[i])
+			if i in inversions_b:
+				bits_b.append(~b_noninvert[i])
+			else:
+				bits_b.append(b_noninvert[i])
+		self.comb += [
+			self.a.eq(Cat(*bits_a)),
+			self.b.eq(Cat(*bits_b))
+		]

@@ -1,10 +1,7 @@
 from mibuild.platforms import rhino
 
-from library.baseapp import RhinoBaseApp
-from library.crg import CRGFMC150
+from library.toplevel import GPMCToplevel
 
-class BaseApp(RhinoBaseApp):
-	def __init__(self, components):
-		self.double_dac = True
-		RhinoBaseApp.__init__(self, components, rhino.Platform(), 5,
-			lambda app: CRGFMC150(app, double_dac=self.double_dac))
+class Toplevel(GPMCToplevel):
+	def __init__(self, app_toplevel_class):
+		GPMCToplevel.__init__(self, 5, rhino.Platform(), app_toplevel_class)

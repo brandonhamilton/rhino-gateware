@@ -17,7 +17,7 @@ Prerequisites
  * Mibuild (https://github.com/milkymist/mibuild)
  * mkbof (https://github.com/brandonhamilton/rhino/tree/master/borph/tools/borph)
  * Xilinx ISE command line tools
- * Python 3.2
+ * Python 3.3
 
 Building
 --------
@@ -29,4 +29,3 @@ To build only specified applications:
 $ python3 build.py application1 application2
 
 Look in the application output directory for the .bof file
-

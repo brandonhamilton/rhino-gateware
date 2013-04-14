@@ -48,15 +48,15 @@ def main():
 	if application_dir is None:
 		raise IOError("Could not find application " + app_name)
 	
-	application_module = imp.load_source(app_name, os.path.join(application_dir, "top.py"))
-	app = platform_module.BaseApp(application_module.COMPONENTS)
+	application_module = imp.load_source(app_name, os.path.join(application_dir, "app_toplevel.py"))
+	toplevel = platform_module.Toplevel(application_module.AppToplevel)
 
 	for search_dir in search_dirs:
-		app.mplat.add_source_dir(os.path.join(search_dir, "library", "hdl"))
+		toplevel.mibuild_platform.add_source_dir(os.path.join(search_dir, "library", "hdl"))
 
 	orig_dir = os.getcwd()
 	os.chdir(application_dir)
-	app.build()
+	toplevel.build()
 	os.chdir(orig_dir)
 
 if __name__ == "__main__":

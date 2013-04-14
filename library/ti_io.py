@@ -140,21 +140,18 @@ def _serialize8_ds(strobe, inputs, out_p, out_n):
 		)
 	}
 
-class _BaseDAC:
-	def __init__(self, pins, serdesstrobe):
-		self._pins = pins
-		self._serdesstrobe = serdesstrobe
-		
-		width = 2*len(self._pins.dat_p)
+class _BaseDAC(Module, AutoCSR):
+	def __init__(self, pads, serdesstrobe):
+		width = 2*len(pads.dat_p)
 		
 		# registers are in the system clock domain
-		self._r_data_en = RegisterField()
-		self._r_test_pattern_en = RegisterField()
-		self._r_test_pattern_i0 = RegisterField(width, reset=0x7AB6)
-		self._r_test_pattern_q0 = RegisterField(width, reset=0xEA45)
-		self._r_test_pattern_i1 = RegisterField(width, reset=0x1A16)
-		self._r_test_pattern_q1 = RegisterField(width, reset=0xAAC6)
-		self._r_pulse_frame = RegisterRaw()
+		self._r_data_en = CSRStorage()
+		self._r_test_pattern_en = CSRStorage()
+		self._r_test_pattern_i0 = CSRStorage(width, reset=0x7AB6)
+		self._r_test_pattern_q0 = CSRStorage(width, reset=0xEA45)
+		self._r_test_pattern_i1 = CSRStorage(width, reset=0x1A16)
+		self._r_test_pattern_q1 = CSRStorage(width, reset=0xAAC6)
+		self._r_pulse_frame = CSR()
 
 		# register data transferred to signal clock domain
 		self._data_en = Signal()
@@ -165,48 +162,41 @@ class _BaseDAC:
 		self._test_pattern_q1 = Signal(width)
 		self._pulse_frame = Signal()				
 	
-	def get_registers(self):
-		return [self._r_data_en, self._r_test_pattern_en,
-			self._r_test_pattern_i0, self._r_test_pattern_q0,
-			self._r_test_pattern_i1, self._r_test_pattern_q1,
-			self._r_pulse_frame]
+		###
 
-	def get_fragment(self):
 		ps = PulseSynchronizer("sys", "signal")
-		comb = [
+		self.submodules += ps
+		self.comb += [
 			ps.i.eq(self._r_pulse_frame.re),
 			self._pulse_frame.eq(ps.o)
 		]
-		cdc = {
-			MultiReg(self._r_data_en.field.r, self._data_en, "signal"),
-			MultiReg(self._r_test_pattern_en.field.r, self._test_pattern_en, "signal"),
-			MultiReg(self._r_test_pattern_i0.field.r, self._test_pattern_i0, "signal"),
-			MultiReg(self._r_test_pattern_q0.field.r, self._test_pattern_q0, "signal"),
-			MultiReg(self._r_test_pattern_i1.field.r, self._test_pattern_i1, "signal"),
-			MultiReg(self._r_test_pattern_q1.field.r, self._test_pattern_q1, "signal")
+		self.specials += {
+			MultiReg(self._r_data_en.storage, self._data_en, "signal"),
+			MultiReg(self._r_test_pattern_en.storage, self._test_pattern_en, "signal"),
+			MultiReg(self._r_test_pattern_i0.storage, self._test_pattern_i0, "signal"),
+			MultiReg(self._r_test_pattern_q0.storage, self._test_pattern_q0, "signal"),
+			MultiReg(self._r_test_pattern_i1.storage, self._test_pattern_i1, "signal"),
+			MultiReg(self._r_test_pattern_q1.storage, self._test_pattern_q1, "signal")
 		}
-		return ps.get_fragment() + Fragment(comb, specials=cdc)
 
 class DAC(_BaseDAC):
-	def __init__(self, pins, serdesstrobe):
-		_BaseDAC.__init__(self, pins, serdesstrobe)
+	def __init__(self, pads, serdesstrobe):
+		_BaseDAC.__init__(self, pads, serdesstrobe)
 
 		# in signal clock domain
-		width = 2*len(pins.dat_p)
-		self.i = Signal(width)
-		self.q = Signal(width)
+		dw = len(pads.dat_p)
+		self.i = Signal(2*dw)
+		self.q = Signal(2*dw)
 	
-	def get_fragment(self):
-		dw = len(self._pins.dat_p)
-		inst = set()
-		
+		###
+
 		# mux test pattern, enable DAC, accept tokens
 		pulse_frame_pending = Signal()
 		frame_div = Signal(3)
 		mi = Signal(2*dw)
 		mq = Signal(2*dw)
 		fr = Signal(4)
-		comb = [
+		self.comb += [
 			If(self._test_pattern_en,
 				If(frame_div[0],
 					mi.eq(self._test_pattern_i1),
@@ -226,42 +216,38 @@ class DAC(_BaseDAC):
 			)
 		]
 		mq_d = Signal(2*dw)
-		sync = [
+		self.sync.signal += [
 			If(self._pulse_frame,
 				pulse_frame_pending.eq(1)
 			).Elif(frame_div == 0,
 				pulse_frame_pending.eq(0)
 			),
-			self._pins.txenable.eq(self._test_pattern_en | self._data_en),
+			pads.txenable.eq(self._test_pattern_en | self._data_en),
 			frame_div.eq(frame_div + 1),
 			mq_d.eq(mq)
 		]
 		
 		# transmit data and framing signal
 		for i in range(dw):
-			inst |= _serialize4_ds(self._serdesstrobe,
+			self.specials += _serialize4_ds(serdesstrobe,
 				[mq_d[i], mi[dw+i], mi[i], mq[dw+i]],
-				self._pins.dat_p[i], self._pins.dat_n[i])
-		inst |= _serialize4_ds(self._serdesstrobe,
+				pads.dat_p[i], pads.dat_n[i])
+		self.specials += _serialize4_ds(serdesstrobe,
 			[fr[3], fr[2], fr[1], fr[0]],
-			self._pins.frame_p, self._pins.frame_n)
-		
-		return _BaseDAC.get_fragment(self) + Fragment(comb, sync={"signal": sync}, specials=inst)
+			pads.frame_p, pads.frame_n)
 
 class DAC2X(_BaseDAC):
-	def __init__(self, pins, serdesstrobe):
-		_BaseDAC.__init__(self, pins, serdesstrobe)
+	def __init__(self, pads, serdesstrobe):
+		_BaseDAC.__init__(self, pads, serdesstrobe)
 
 		# in signal clock domain
-		width = 2*len(pins.dat_p)
-		self.i0 = Signal(width)
-		self.q0 = Signal(width)
-		self.i1 = Signal(width)
-		self.q1 = Signal(width)
+		dw = len(pads.dat_p)
+		self.i0 = Signal(2*dw)
+		self.q0 = Signal(2*dw)
+		self.i1 = Signal(2*dw)
+		self.q1 = Signal(2*dw)
 	
-	def get_fragment(self):
-		dw = len(self._pins.dat_p)
-		inst = set()
+		###
 		
 		# mux test pattern, enable DAC, accept tokens
 		pulse_frame_pending = Signal()
@@ -271,7 +257,7 @@ class DAC2X(_BaseDAC):
 		mi1 = Signal(2*dw)
 		mq1 = Signal(2*dw)
 		fr = Signal(8)
-		comb = [
+		self.comb += [
 			If(self._test_pattern_en,
 				mi0.eq(self._test_pattern_i0),
 				mq0.eq(self._test_pattern_q0),
@@ -290,29 +276,27 @@ class DAC2X(_BaseDAC):
 			)
 		]
 		mq1_d = Signal(2*dw)
-		sync = [
+		self.sync.signal += [
 			If(self._pulse_frame,
 				pulse_frame_pending.eq(1)
 			).Elif(frame_div == 0,
 				pulse_frame_pending.eq(0)
 			),
-			self._pins.txenable.eq(self._test_pattern_en | self._data_en),
+			pads.txenable.eq(self._test_pattern_en | self._data_en),
 			frame_div.eq(frame_div + 1),
 			mq1_d.eq(mq1)
 		]
 		
 		# transmit data and framing signal
 		for i in range(dw):
-			inst |= _serialize8_ds(self._serdesstrobe,
+			self.specials += _serialize8_ds(serdesstrobe,
 				[mq1_d[i], mi0[dw+i], mi0[i], mq0[dw+i],
 				 mq0[i], mi1[dw+i], mi1[i], mq1[dw+i]],
-				self._pins.dat_p[i], self._pins.dat_n[i])
-		inst |= _serialize8_ds(self._serdesstrobe,
+				pads.dat_p[i], pads.dat_n[i])
+		self.specials += _serialize8_ds(serdesstrobe,
 			[fr[7], fr[6], fr[5], fr[4],
 			 fr[3], fr[2], fr[1], fr[0]],
-			self._pins.frame_p, self._pins.frame_n)
-		
-		return _BaseDAC.get_fragment(self) + Fragment(comb, sync={"signal": sync}, specials=inst)
+			pads.frame_p, pads.frame_n)
 
 class ADC(Module):
 	def __init__(self, pads):

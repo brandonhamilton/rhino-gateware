@@ -5,33 +5,6 @@ from migen.fhdl.specials import Instance
 from migen.fhdl.module import Module
 from migen.bank.description import *
 
-from library.uid import UID_CRG_RADAR
-
-class CRG100(Module):
-	def __init__(self, baseapp):
-		self.clock_domains.cd_sys = ClockDomain()
-		self._clk = baseapp.mplat.request("clk100")
-		baseapp.mplat.add_platform_command("""
-NET "{clk_100}" TNM_NET = "GRPclk_100";
-TIMESPEC "TSclk_100" = PERIOD "GRPclk_100" 10 ns HIGH 50%;
-""", clk_100=self._clk.p)
-		self.specials += Instance("IBUFGDS",
-			Instance.Input("I", self._clk.p),
-			Instance.Input("IB", self._clk.n),
-			Instance.Output("O", self.cd_sys.clk)
-		)
-		self.specials += Instance("SRL16E",
-			Instance.Parameter("INIT", 0xffff),
-			Instance.Input("CLK", ClockSignal()),
-			Instance.Input("CE", 1),
-			Instance.Input("D", 0),
-			Instance.Input("A0", 1),
-			Instance.Input("A1", 1),
-			Instance.Input("A2", 1),
-			Instance.Input("A3", 1),
-			Instance.Output("Q", self.cd_sys.rst)
-		)
-
 # Clock generator for radar-type applications using TI ADC/DAC
 #
 # Free-running differential input clock is fed into a DCM that
@@ -54,47 +27,39 @@ TIMESPEC "TSclk_100" = PERIOD "GRPclk_100" 10 ns HIGH 50%;
 #      Channels are multiplexed
 #      => Generate 4x (for DAC clock pins)
 #         and 8x (for OSERDES) clocks
-class CRGRadar(Module):
-	def __init__(self, baseapp, free_run_clk, free_run_period, signal_clks, adc_period,
-	  csr_name="crg", double_dac=True):
-		self._free_run_clk = free_run_clk
-		self._free_run_period = free_run_period
-		self._signal_clks = signal_clks
-		self._adc_period = adc_period
-		self._double_dac = double_dac
-		
+class CRGRadar(Module, AutoCSR):
+	def __init__(self, platform, free_run_clk, free_run_period, signal_clks, adc_period, double_dac):
 		self.clock_domains.cd_sys = ClockDomain()
 		self.clock_domains.cd_signal = ClockDomain()
 		self.clock_domains.cd_dac = ClockDomain()
 		self.clock_domains.cd_dacio = ClockDomain()
 		self.dacio_strb = Signal()
 		
-		baseapp.mplat.add_platform_command("""
+		platform.add_platform_command("""
 NET "{clk_freerun}" TNM_NET = "GRPclk_freerun";
 NET "{clk_adc}" TNM_NET = "GRPclk_adc";
-TIMESPEC "TSclk_freerun" = PERIOD "GRPclk_freerun" """+str(float(self._free_run_period))+""" ns HIGH 50%;
-TIMESPEC "TSclk_adc" = PERIOD "GRPclk_adc" """+str(float(self._adc_period))+""" ns HIGH 50%;
-""", clk_freerun=self._free_run_clk.p, clk_adc=self._signal_clks.adc_clk_p)
+TIMESPEC "TSclk_freerun" = PERIOD "GRPclk_freerun" """+str(float(free_run_period))+""" ns HIGH 50%;
+TIMESPEC "TSclk_adc" = PERIOD "GRPclk_adc" """+str(float(adc_period))+""" ns HIGH 50%;
+""", clk_freerun=free_run_clk.p, clk_adc=signal_clks.adc_clk_p)
 		
-		self._r_pll_enable = RegisterField()
-		self._r_pll_locked = RegisterField(1, READ_ONLY, WRITE_ONLY)
-		baseapp.csrs.request(csr_name, UID_CRG_RADAR, self._r_pll_enable, self._r_pll_locked)
+		self._r_pll_enable = CSRStorage()
+		self._r_pll_locked = CSRStatus()
 	
 		# receive differential free-running clock and generate 120MHz system clock
 		freerun_buffered = Signal()
 		self.specials += Instance("IBUFDS",
-			Instance.Input("I", self._free_run_clk.p),
-			Instance.Input("IB", self._free_run_clk.n),
+			Instance.Input("I", free_run_clk.p),
+			Instance.Input("IB", free_run_clk.n),
 			Instance.Output("O", freerun_buffered)
 		)
 		sys_period = Fraction(1000, 120)
-		sys_ratio = Fraction(self._free_run_period/sys_period)
+		sys_ratio = Fraction(free_run_period/sys_period)
 		sys_clk_unbuffered = Signal()
 		self.specials += Instance("DCM_CLKGEN",
 			Instance.Parameter("CLKFX_DIVIDE", sys_ratio.denominator),
 			Instance.Parameter("CLKFX_MD_MAX", float(sys_ratio)),
 			Instance.Parameter("CLKFX_MULTIPLY", sys_ratio.numerator),
-			Instance.Parameter("CLKIN_PERIOD", float(self._free_run_period)),
+			Instance.Parameter("CLKIN_PERIOD", float(free_run_period)),
 			Instance.Parameter("SPREAD_SPECTRUM", "NONE"),
 			Instance.Parameter("STARTUP_WAIT", "TRUE"),
 			Instance.Output("CLKFX", sys_clk_unbuffered),
@@ -112,8 +77,8 @@ TIMESPEC "TSclk_adc" = PERIOD "GRPclk_adc" """+str(float(self._adc_period))+""" 
 		# receive differential ADC clock and generate phase aligned clocks
 		adc_buffered = Signal()
 		self.specials += Instance("IBUFGDS",
-			Instance.Input("I", self._signal_clks.adc_clk_p),
-			Instance.Input("IB", self._signal_clks.adc_clk_n),
+			Instance.Input("I", signal_clks.adc_clk_p),
+			Instance.Input("IB", signal_clks.adc_clk_n),
 			Instance.Output("O", adc_buffered)
 		)
 		pll_reset = Signal()
@@ -133,7 +98,7 @@ TIMESPEC "TSclk_adc" = PERIOD "GRPclk_adc" """+str(float(self._adc_period))+""" 
 			Instance.Parameter("REF_JITTER", 0.100),
 			Instance.Parameter("CLK_FEEDBACK", "CLKFBOUT"),
 			
-			Instance.Parameter("CLKIN_PERIOD", float(self._adc_period)),
+			Instance.Parameter("CLKIN_PERIOD", float(adc_period)),
 			Instance.Input("CLKIN", adc_buffered),
 
 			# 1x signal clock
@@ -143,13 +108,13 @@ TIMESPEC "TSclk_adc" = PERIOD "GRPclk_adc" """+str(float(self._adc_period))+""" 
 			Instance.Output("CLKOUT0", pll_out0),
 			
 			# 4x (8x) DAC SERDES clock
-			Instance.Parameter("CLKOUT1_DIVIDE", 1 if self._double_dac else 2),
+			Instance.Parameter("CLKOUT1_DIVIDE", 1 if double_dac else 2),
 			Instance.Parameter("CLKOUT1_DUTY_CYCLE", 0.5),
 			Instance.Parameter("CLKOUT1_PHASE", 0.0),
 			Instance.Output("CLKOUT1", pll_out1),
 			
 			# 2x (4x) DAC clock
-			Instance.Parameter("CLKOUT2_DIVIDE", 2 if self._double_dac else 4),
+			Instance.Parameter("CLKOUT2_DIVIDE", 2 if double_dac else 4),
 			Instance.Parameter("CLKOUT2_DUTY_CYCLE", 0.5),
 			Instance.Parameter("CLKOUT2_PHASE", -45.0),
 			Instance.Output("CLKOUT2", pll_out2),
@@ -191,7 +156,7 @@ TIMESPEC "TSclk_adc" = PERIOD "GRPclk_adc" """+str(float(self._adc_period))+""" 
 		
 		# generate strobe and DAC I/O clock
 		self.specials += Instance("BUFPLL",
-			Instance.Parameter("DIVIDE", 8 if self._double_dac else 4),
+			Instance.Parameter("DIVIDE", 8 if double_dac else 4),
 			Instance.Input("PLLIN", pll_out1),
 			Instance.Input("GCLK", ClockSignal("signal")),
 			Instance.Input("LOCKED", pll_locked),
@@ -215,8 +180,8 @@ TIMESPEC "TSclk_adc" = PERIOD "GRPclk_adc" """+str(float(self._adc_period))+""" 
 		)
 		self.specials += Instance("OBUFDS",
 			Instance.Input("I", dac_clk_se),
-			Instance.Output("O", self._signal_clks.dac_clk_p),
-			Instance.Output("OB", self._signal_clks.dac_clk_n)
+			Instance.Output("O", signal_clks.dac_clk_p),
+			Instance.Output("OB", signal_clks.dac_clk_n)
 		)
 		
 		self.specials += Instance("SRL16E",
@@ -232,26 +197,6 @@ TIMESPEC "TSclk_adc" = PERIOD "GRPclk_adc" """+str(float(self._adc_period))+""" 
 		)
 		
 		self.comb += [
-			pll_reset.eq(~self._r_pll_enable.field.r),
-			self._r_pll_locked.field.w.eq(pll_locked)
+			pll_reset.eq(~self._r_pll_enable.storage),
+			self._r_pll_locked.status.eq(pll_locked)
 		]
-
-
-# Clock generation for the FMC150
-#
-# Free running clock from RHINO is 100MHz.
-#
-# ADC samples at 122.88MHz
-# When double_dac=False:
-#   DAC samples at 122.88MHz
-#      => Generate 2x (245.76MHz for DAC clock pins)
-#         and 4x (491.52MHz for OSERDES) clocks
-# When double_dac=True:
-#   DAC samples at 245.76MHz
-#      => Generate 4x (491.52MHz for DAC clock pins)
-#         and 8x (983.04MHz for OSERDES) clocks
-class CRGFMC150(CRGRadar):
-	def __init__(self, baseapp, csr_name="crg", double_dac=True):
-		clk100 = baseapp.mplat.request("clk100")
-		fmc_clocks = baseapp.mplat.request("fmc150_clocks")
-		CRGRadar.__init__(self, baseapp, clk100, 10, fmc_clocks, 8.13, csr_name, double_dac)

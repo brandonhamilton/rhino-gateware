@@ -28,7 +28,8 @@ class FMC150Controller(Module, AutoCSR):
 			("mon_reset_n", True)
 		]:
 			if is_output:
-				csr = CSRStorage(name=name)
+				reset = 1 if name in ["adc_en_n", "cdce_en_n", "dac_en_n", "mon_en_n"] else 0
+				csr = CSRStorage(name=name, reset=reset)
 				self.comb += getattr(pads, name).eq(csr.storage)
 			else:
 				csr = CSRStatus(name=name)

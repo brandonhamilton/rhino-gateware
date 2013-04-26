@@ -33,12 +33,12 @@ class I2CDataWriter(Module, AutoCSR):
 		self.submodules.fsm = FSM("WAIT_DATA", "START_CONDITION", "TRANSFER_DATA", "ACK", "STOP_CONDITION")
 		
 		# CSRs
-		self._pos_end_cycle = CSRStorage(cycle_bits, reset=240)
-		self._pos_clk_high = CSRStorage(cycle_bits, reset=140)
-		self._pos_data = CSRStorage(cycle_bits, reset=70)
-		self._pos_start = CSRStorage(cycle_bits, reset=170)
-		self._pos_stop_low = CSRStorage(cycle_bits, reset=70)
-		self._pos_stop_high = CSRStorage(cycle_bits, reset=210)
+		self._pos_end_cycle = CSRStorage(cycle_bits, reset=300)
+		self._pos_clk_high = CSRStorage(cycle_bits, reset=175)
+		self._pos_data = CSRStorage(cycle_bits, reset=90)
+		self._pos_start = CSRStorage(cycle_bits, reset=200)
+		self._pos_stop_low = CSRStorage(cycle_bits, reset=90)
+		self._pos_stop_high = CSRStorage(cycle_bits, reset=275)
 
 		###	
 
@@ -171,7 +171,7 @@ class BBI2CDataWriter(Module, AutoCSR):
 
 # I2C IO expander
 class PCA9555Driver(BBI2CDataWriter):
-	def __init__(self, pads, cycle_bits=8, addr=0x20):
+	def __init__(self, pads, cycle_bits=9, addr=0x20):
 		self.program = Sink([("addr", 8), ("data", 16)])
 		self.busy = Signal()
 		BBI2CDataWriter.__init__(self, cycle_bits, 32)

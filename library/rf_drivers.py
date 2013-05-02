@@ -182,11 +182,11 @@ class PCA9555Driver(BBI2CDataWriter):
 		self.specials += self.sda.get_tristate(pads.sda)
 	
 		word = Signal(32)
-		addr = Signal(7)
+		saddr = Signal(7)
 		self.comb += [
 			self.idw.pds.eq(self.program.stb),
-			addr.eq(addr),
-			word.eq(Cat(self.program.payload.data, self.program.payload.addr, 0, addr)),
+			saddr.eq(addr),
+			word.eq(Cat(self.program.payload.data, self.program.payload.addr, 0, saddr)),
 			self.idw.pdi.eq(bitreverse(word)),
 			self.busy.eq(self.idw.busy)
 		]
@@ -224,9 +224,9 @@ class SerialDataWriter(Module, AutoCSR):
 	
 		# cycle counter and events
 		cycle_counter = Signal(cycle_bits)
-		cycle_counter_reset = Signal()
+		self.cycle_counter_reset = Signal()
 		self.comb += self.eoc.eq(cycle_counter == self._pos_end_cycle.storage)
-		self.sync += If(self.eoc | cycle_counter_reset,
+		self.sync += If(self.eoc | self.cycle_counter_reset,
 				cycle_counter.eq(0)
 			).Else(
 				cycle_counter.eq(cycle_counter + 1)
@@ -240,16 +240,16 @@ class SerialDataWriter(Module, AutoCSR):
 		
 		# data
 		sr = Signal(data_bits)
-		sr_load = Signal()
-		sr_shift = Signal()
-		remaining_data = Signal(max=data_bits+1)
-		self.sync += If(sr_load,
+		self.sr_load = Signal()
+		self.sr_shift = Signal()
+		self.remaining_data = Signal(max=data_bits+1)
+		self.sync += If(self.sr_load,
 				sr.eq(self.pdi),
-				remaining_data.eq(data_bits)
-			).Elif(sr_shift,
+				self.remaining_data.eq(data_bits)
+			).Elif(self.sr_shift,
 				sr.eq(sr[1:]),
 				self.d.eq(sr[0]),
-				remaining_data.eq(remaining_data-1)
+				self.remaining_data.eq(self.remaining_data-1)
 			)
 		
 		# clock
@@ -263,10 +263,11 @@ class SerialDataWriter(Module, AutoCSR):
 			self.clk.eq(clk_p)
 		]
 		
+	def do_finalize(self):
 		# control FSM
 		self.fsm.act(self.fsm.WAIT_DATA,
-			cycle_counter_reset.eq(1),
-			sr_load.eq(1),
+			self.cycle_counter_reset.eq(1),
+			self.sr_load.eq(1),
 			If(self.pds,
 				*self.start_action
 			)
@@ -274,8 +275,8 @@ class SerialDataWriter(Module, AutoCSR):
 		self.fsm.act(self.fsm.TRANSFER_DATA,
 			self.clk_high.eq(self.ev_clk_high),
 			self.clk_low.eq(self.ev_clk_low),
-			sr_shift.eq(self.ev_data),
-			If(self.eoc & (remaining_data == 0),
+			self.sr_shift.eq(self.ev_data),
+			If(self.eoc & (self.remaining_data == 0),
 				*self.end_action
 			)
 		)

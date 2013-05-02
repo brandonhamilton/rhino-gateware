@@ -7,16 +7,23 @@ from library.rf_drivers import *
 
 class DataGen(SimActor):
 	def __init__(self):
+		self.ismm = Source([("addr", 7), ("data", 16)])
 		def data_gen():
 			yield Token("ismm", {"addr": 0b1010010, "data": 0})
 			for i in range(16):
 				yield Token("ismm", {"addr": 0b1010101, "data": 1 << i})
-		SimActor.__init__(self, data_gen(),
-			("ismm", Source, [("addr", 7), ("data", 16)]))
+		SimActor.__init__(self, data_gen())
+
+class RFMDISMM:
+	def __init__(self):
+		self.enx = Signal()
+		self.sclk = Signal()
+		self.sdata = Signal()
+		self.sdatao = Signal()
 
 def main():
 	g = DataFlowGraph()
-	g.add_connection(DataGen(), RFMDISMMDriver())
+	g.add_connection(DataGen(), RFMDISMMDriver(RFMDISMM()))
 	c = CompositeActor(g)
 	
 	def end_simulation(s):

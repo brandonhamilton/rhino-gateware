@@ -182,11 +182,11 @@ class PCA9555Driver(BBI2CDataWriter):
 		self.specials += self.sda.get_tristate(pads.sda)
 	
 		word = Signal(32)
-		addr = Signal(7)
+		saddr = Signal(7)
 		self.comb += [
 			self.idw.pds.eq(self.program.stb),
-			addr.eq(addr),
-			word.eq(Cat(self.program.payload.data, self.program.payload.addr, 0, addr)),
+			saddr.eq(addr),
+			word.eq(Cat(self.program.payload.data, self.program.payload.addr, 0, saddr)),
 			self.idw.pdi.eq(bitreverse(word)),
 			self.busy.eq(self.idw.busy)
 		]

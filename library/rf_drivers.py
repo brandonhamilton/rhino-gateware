@@ -33,12 +33,12 @@ class I2CDataWriter(Module, AutoCSR):
 		self.submodules.fsm = FSM("WAIT_DATA", "START_CONDITION", "TRANSFER_DATA", "ACK", "STOP_CONDITION")
 		
 		# CSRs
-		self._pos_end_cycle = CSRStorage(cycle_bits, reset=240)
-		self._pos_clk_high = CSRStorage(cycle_bits, reset=140)
-		self._pos_data = CSRStorage(cycle_bits, reset=70)
-		self._pos_start = CSRStorage(cycle_bits, reset=170)
-		self._pos_stop_low = CSRStorage(cycle_bits, reset=70)
-		self._pos_stop_high = CSRStorage(cycle_bits, reset=210)
+		self._pos_end_cycle = CSRStorage(cycle_bits, reset=300)
+		self._pos_clk_high = CSRStorage(cycle_bits, reset=175)
+		self._pos_data = CSRStorage(cycle_bits, reset=90)
+		self._pos_start = CSRStorage(cycle_bits, reset=200)
+		self._pos_stop_low = CSRStorage(cycle_bits, reset=90)
+		self._pos_stop_high = CSRStorage(cycle_bits, reset=275)
 
 		###	
 
@@ -171,7 +171,7 @@ class BBI2CDataWriter(Module, AutoCSR):
 
 # I2C IO expander
 class PCA9555Driver(BBI2CDataWriter):
-	def __init__(self, pads, cycle_bits=8, addr=0x20):
+	def __init__(self, pads, cycle_bits=9, addr=0x20):
 		self.program = Sink([("addr", 8), ("data", 16)])
 		self.busy = Signal()
 		BBI2CDataWriter.__init__(self, cycle_bits, 32)
@@ -193,7 +193,7 @@ class PCA9555Driver(BBI2CDataWriter):
 		self.idw.fsm.act(self.idw.fsm.WAIT_DATA, self.program.ack.eq(1))
 		
 class SerialDataWriter(Module, AutoCSR):
-	def __init__(self, cycle_bits, data_bits, extra_fsm_states=[]):
+	def __init__(self, cycle_bits, data_bits, extra_fsm_states=[], def_end_cycle=20):
 		# I/O signals
 		self.d = Signal()
 		self.clk = Signal()
@@ -217,7 +217,7 @@ class SerialDataWriter(Module, AutoCSR):
 		self.end_action = [self.fsm.next_state(self.fsm.WAIT_DATA)]
 		
 		# registers
-		self._pos_end_cycle = CSRStorage(cycle_bits, reset=20)
+		self._pos_end_cycle = CSRStorage(cycle_bits, reset=def_end_cycle)
 		self._pos_data = CSRStorage(cycle_bits, reset=0)
 
 		###
@@ -284,11 +284,11 @@ class SerialDataWriter(Module, AutoCSR):
 # 6-bit RF digital attenuator
 class PE43602Driver(Module, AutoCSR):
 	def __init__(self, pads, cycle_bits=8):
-		self.submodules.sdw = SerialDataWriter(cycle_bits, 8, ["LE"])
+		self.submodules.sdw = SerialDataWriter(cycle_bits, 8, ["LE"], 12)
 		self.sdw.end_action = [self.sdw.fsm.next_state(self.sdw.fsm.LE)]
 		
-		self._pos_le_high = CSRStorage(cycle_bits, reset=5)
-		self._pos_le_low = CSRStorage(cycle_bits, reset=15)
+		self._pos_le_high = CSRStorage(cycle_bits, reset=3)
+		self._pos_le_low = CSRStorage(cycle_bits, reset=9)
 		
 		self.program = Sink([("attn", 6)])
 		self.busy = Signal()
@@ -352,8 +352,8 @@ class PE43602Driver(Module, AutoCSR):
 		)
 
 class SPIWriter(Module, AutoCSR):
-	def __init__(self, cycle_bits, data_bits):
-		self.submodules.sdw = SerialDataWriter(cycle_bits, data_bits, ["FIRSTCLK", "CSN_HI"])
+	def __init__(self, cycle_bits, data_bits, def_end_cycle):
+		self.submodules.sdw = SerialDataWriter(cycle_bits, data_bits, ["FIRSTCLK", "CSN_HI"], def_end_cycle)
 		self.sdw.start_action = [self.sdw.fsm.next_state(self.sdw.fsm.FIRSTCLK)]
 		self.sdw.end_action = [self.sdw.fsm.next_state(self.sdw.fsm.CSN_HI)]
 		
@@ -441,7 +441,7 @@ class RFMDISMMDriver(SPIWriter):
 	def __init__(self, pads, cycle_bits=8):
 		self.program = Sink([("addr", 7), ("data", 16)])
 		self.busy = Signal()
-		SPIWriter.__init__(self, cycle_bits, 25)
+		SPIWriter.__init__(self, cycle_bits, 25, 6)
 		
 		###
 
@@ -466,7 +466,7 @@ class LMH6521(SPIWriter):
 	def __init__(self, pads, cycle_bits=8):
 		self.program = Sink([("channel", 1), ("gain", 6)])
 		self.busy = Signal()
-		SPIWriter.__init__(self, cycle_bits, 16)
+		SPIWriter.__init__(self, cycle_bits, 16, 4)
 		
 		###
 

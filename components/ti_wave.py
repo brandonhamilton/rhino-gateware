@@ -27,9 +27,13 @@ class WaveformGenerator(Module, AutoCSR):
 			]
 
 class WaveformCollector(Module, AutoCSR):
-	def __init__(self, pads):
-		width = 2*len(pads.dat_a_p)
+	def __init__(self, pads_or_adc):
+		if isinstance(pads_or_adc, Module):
+			self.adc = pads_or_adc
+			self.autocsr_exclude = {"adc"}
+		else:
+			self.submodules.adc = ADC(pads_or_adc)
+		width = len(self.adc.a)
 		self.submodules.wm = WaveformMemoryIn(1024, 2*width)
-		self.submodules.adc = ADC(pads)
 
 		self.comb += self.wm.value.eq(Cat(self.adc.a, self.adc.b))

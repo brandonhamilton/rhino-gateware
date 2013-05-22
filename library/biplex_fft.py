@@ -1,6 +1,6 @@
 from math import sin, cos, pi
 
-from migen.fhdl.structure import *
+from migen.fhdl.std import *
 from migen.genlib.complex import *
 
 class _Butterfly:

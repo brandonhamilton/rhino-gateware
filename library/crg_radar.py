@@ -1,8 +1,6 @@
 from fractions import Fraction
 
-from migen.fhdl.structure import *
-from migen.fhdl.specials import Instance
-from migen.fhdl.module import Module
+from migen.fhdl.std import *
 from migen.bank.description import *
 
 # Clock generator for radar-type applications using TI ADC/DAC

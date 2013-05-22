@@ -1,5 +1,4 @@
-from migen.fhdl.structure import *
-from migen.fhdl.module import Module
+from migen.fhdl.std import *
 from migen.bank.description import AutoCSR
 
 from library.waveform_memory import WaveformMemoryOut, WaveformMemoryIn
@@ -7,7 +6,7 @@ from library.ti_io import DAC, DAC2X, ADC
 
 class WaveformGenerator(Module, AutoCSR):
 	def __init__(self, crg, pads, double_dac):
-		width = 2*len(pads.dat_p)
+		width = 2*flen(pads.dat_p)
 		spc = 2 if double_dac else 1
 		dac_class = DAC2X if double_dac else DAC
 		self.submodules.wm = WaveformMemoryOut(1024, width, spc)
@@ -33,7 +32,7 @@ class WaveformCollector(Module, AutoCSR):
 			self.autocsr_exclude = {"adc"}
 		else:
 			self.submodules.adc = ADC(pads_or_adc)
-		width = len(self.adc.a)
+		width = flen(self.adc.a)
 		self.submodules.wm = WaveformMemoryIn(1024, 2*width)
 
 		self.comb += self.wm.value.eq(Cat(self.adc.a, self.adc.b))

@@ -1,6 +1,4 @@
-from migen.fhdl.structure import *
-from migen.fhdl.module import Module
-from migen.fhdl.specials import Instance
+from migen.fhdl.std import *
 from migen.bank.description import *
 from migen.genlib.cdc import *
 
@@ -142,7 +140,7 @@ def _serialize8_ds(strobe, inputs, out_p, out_n):
 
 class _BaseDAC(Module, AutoCSR):
 	def __init__(self, pads, serdesstrobe):
-		width = 2*len(pads.dat_p)
+		width = 2*flen(pads.dat_p)
 		
 		# registers are in the system clock domain
 		self._r_data_en = CSRStorage()
@@ -184,7 +182,7 @@ class DAC(_BaseDAC):
 		_BaseDAC.__init__(self, pads, serdesstrobe)
 
 		# in signal clock domain
-		dw = len(pads.dat_p)
+		dw = flen(pads.dat_p)
 		self.i = Signal(2*dw)
 		self.q = Signal(2*dw)
 	
@@ -241,7 +239,7 @@ class DAC2X(_BaseDAC):
 		_BaseDAC.__init__(self, pads, serdesstrobe)
 
 		# in signal clock domain
-		dw = len(pads.dat_p)
+		dw = flen(pads.dat_p)
 		self.i0 = Signal(2*dw)
 		self.q0 = Signal(2*dw)
 		self.i1 = Signal(2*dw)
@@ -300,7 +298,7 @@ class DAC2X(_BaseDAC):
 
 class ADC(Module):
 	def __init__(self, pads):
-		n_io = len(pads.dat_a_p)
+		n_io = flen(pads.dat_a_p)
 		self.a = Signal(2*n_io)
 		self.b = Signal(2*n_io)
 	

@@ -31,10 +31,10 @@ class WaveformMemoryOut(Module, AutoCSR):
 			MultiReg(self._r_mult.storage, mult, "signal"),
 		}
 		#
-		mem_ports = [(self._mem_i.get_port(clock_domain="signal"),
-			self._mem_q.get_port(clock_domain="signal"))
-			for i in range(spc)]
-		for n, (port_i, port_q) in enumerate(mem_ports):
+		for n in range(spc):
+			port_i = self._mem_i.get_port(clock_domain="signal")
+			port_q = self._mem_q.get_port(clock_domain="signal")
+			self.specials += port_i, port_q
 			nbits = bits_for(depth-1)+1
 			mem_a = Signal(nbits)
 			v_mem_a = Signal(nbits, variable=True)
@@ -95,6 +95,7 @@ class WaveformMemoryIn(Module, AutoCSR):
 		active = Signal()
 		write_address = Signal(max=depth)
 		mem_port = self._mem.get_port(write_capable=True, clock_domain="signal")
+		self.specials += mem_port
 		self.comb += [
 			mem_port.adr.eq(write_address),
 			mem_port.dat_w.eq(self.value),

@@ -1,5 +1,5 @@
 from migen.fhdl.std import *
-from migen.fhdl.tools import bitreverse
+from migen.genlib.misc import bitreverse
 from migen.genlib.cdc import MultiReg
 from migen.flow.actor import *
 from migen.bank.description import *

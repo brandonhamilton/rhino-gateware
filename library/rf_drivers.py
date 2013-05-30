@@ -350,22 +350,24 @@ class PE43602Driver(Module, AutoCSR):
 		)
 
 class SPIWriter(Module, AutoCSR):
-	def __init__(self, cycle_bits, data_bits, def_end_cycle):
+	def __init__(self, cycle_bits, data_bits, def_end_cycle, bidir_data):
 		self.submodules.sdw = SerialDataWriter(cycle_bits, data_bits, ["FIRSTCLK", "CSN_HI"], def_end_cycle)
 		self.sdw.start_action = [self.sdw.fsm.next_state(self.sdw.fsm.FIRSTCLK)]
 		self.sdw.end_action = [self.sdw.fsm.next_state(self.sdw.fsm.CSN_HI)]
 		
-		self.mosi = Signal()
-		self.miso = Signal()
 		self.csn = Signal(reset=1)
 		self.clk = Signal()
+		if bidir_data:
+			self.data = TSTriple()
+		else:
+			self.mosi = Signal()
+			self.miso = Signal()
 		
 		self.spi_busy = Signal()
-		self.miso_synced = Signal()
 		
 		# bitbang control
 		self._bb_enable = CSRStorage()
-		self._bb_out = CSRStorage(3, reset=0x2) # bb_mosi, bb_csn, bb_clk
+		self._bb_out = CSRStorage(4, reset=0x2) # bb_oe, bb_mosi, bb_csn, bb_clk
 		self._bb_miso = CSRStatus()
 		
 		###
@@ -385,23 +387,38 @@ class SPIWriter(Module, AutoCSR):
 		]
 		
 		# bitbang
-		miso_r1 = Signal()
-		self.sync += [
-			miso_r1.eq(self.miso),
-			self.miso_synced.eq(miso_r1)
-		]
-		self.comb += [
-			If(self._bb_enable.storage,
-				self.mosi.eq(self._bb_out.storage[0]),
-				self.csn.eq(self._bb_out.storage[1]),
-				self.clk.eq(self._bb_out.storage[2])
-			).Else(
-				self.mosi.eq(self.sdw.d),
-				self.csn.eq(csn),
-				self.clk.eq(self.sdw.clk)
-			),
-			self._bb_miso.status.eq(self.miso_synced)
-		]
+		if bidir_data:
+			data_in_synced = Signal()
+			self.specials += MultiReg(self.data.i, data_in_synced)
+			self.comb += [
+				If(self._bb_enable.storage,
+					self.data.o.eq(self._bb_out.storage[0]),
+					self.csn.eq(self._bb_out.storage[1]),
+					self.clk.eq(self._bb_out.storage[2]),
+					self.data.oe.eq(self._bb_out.storage[3])
+				).Else(
+					self.data.o.eq(self.sdw.d),
+					self.csn.eq(csn),
+					self.clk.eq(self.sdw.clk),
+					self.data.oe.eq(1)
+				),
+				self._bb_miso.status.eq(data_in_synced)
+			]
+		else:
+			miso_synced = Signal()
+			self.specials += MultiReg(self.miso, miso_synced)
+			self.comb += [
+				If(self._bb_enable.storage,
+					self.mosi.eq(self._bb_out.storage[0]),
+					self.csn.eq(self._bb_out.storage[1]),
+					self.clk.eq(self._bb_out.storage[2])
+				).Else(
+					self.mosi.eq(self.sdw.d),
+					self.csn.eq(csn),
+					self.clk.eq(self.sdw.clk)
+				),
+				self._bb_miso.status.eq(miso_synced)
+			]
 		
 		# complete FSM
 		fsm = self.sdw.fsm
@@ -439,16 +456,20 @@ class RFMDISMMDriver(SPIWriter):
 	def __init__(self, pads, cycle_bits=8):
 		self.program = Sink([("addr", 7), ("data", 16)])
 		self.busy = Signal()
-		SPIWriter.__init__(self, cycle_bits, 25, 6)
+		self.locked = Signal()
+		SPIWriter.__init__(self, cycle_bits, 25, 6, True)
 		
 		###
 
+		self.specials += MultiReg(pads.locked, self.locked)
+		self._r_locked = CSRStatus()
+		self.comb += self._r_locked.status.eq(self.locked)
+
 		self.comb += [
 			pads.enx.eq(self.csn),
-			pads.sclk.eq(self.clk),
-			pads.sdata.eq(self.mosi),
-			self.miso.eq(pads.sdatao),
+			pads.sclk.eq(self.clk)
 		]
+		self.specials += self.data.get_tristate(pads.sdata)
 
 		word = Signal(25)
 		self.comb += [
@@ -464,7 +485,7 @@ class LMH6521(SPIWriter):
 	def __init__(self, pads, cycle_bits=8):
 		self.program = Sink([("channel", 1), ("gain", 6)])
 		self.busy = Signal()
-		SPIWriter.__init__(self, cycle_bits, 16, 4)
+		SPIWriter.__init__(self, cycle_bits, 16, 4, False)
 		
 		###
 

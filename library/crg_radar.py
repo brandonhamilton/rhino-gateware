@@ -33,23 +33,32 @@ class CRGRadar(Module, AutoCSR):
 		self.clock_domains.cd_dacio = ClockDomain()
 		self.dacio_strb = Signal()
 		
+		free_run_isdiff = hasattr(free_run_clk, "p")
+		free_run_cstsig = free_run_clk.p if free_run_isdiff else free_run_clk
+
 		platform.add_platform_command("""
 NET "{clk_freerun}" TNM_NET = "GRPclk_freerun";
 NET "{clk_adc}" TNM_NET = "GRPclk_adc";
 TIMESPEC "TSclk_freerun" = PERIOD "GRPclk_freerun" """+str(float(free_run_period))+""" ns HIGH 50%;
 TIMESPEC "TSclk_adc" = PERIOD "GRPclk_adc" """+str(float(adc_period))+""" ns HIGH 50%;
-""", clk_freerun=free_run_clk.p, clk_adc=signal_clks.adc_clk_p)
+""", clk_freerun=free_run_cstsig, clk_adc=signal_clks.adc_clk_p)
 		
 		self._r_pll_enable = CSRStorage()
 		self._r_pll_locked = CSRStatus()
 	
-		# receive differential free-running clock and generate 120MHz system clock
+		# buffer free-running clock and generate 120MHz system clock
 		freerun_buffered = Signal()
-		self.specials += Instance("IBUFDS",
-			Instance.Input("I", free_run_clk.p),
-			Instance.Input("IB", free_run_clk.n),
-			Instance.Output("O", freerun_buffered)
-		)
+		if free_run_isdiff:
+			self.specials += Instance("IBUFDS",
+				Instance.Input("I", free_run_clk.p),
+				Instance.Input("IB", free_run_clk.n),
+				Instance.Output("O", freerun_buffered)
+			)
+		else:
+			self.specials += Instance("IBUF",
+				Instance.Input("I", free_run_clk),
+				Instance.Output("O", freerun_buffered)
+			)
 		sys_period = Fraction(1000, 120)
 		sys_ratio = Fraction(free_run_period/sys_period)
 		sys_clk_unbuffered = Signal()

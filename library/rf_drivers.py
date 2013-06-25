@@ -3,7 +3,7 @@ from migen.genlib.misc import bitreverse
 from migen.genlib.cdc import MultiReg
 from migen.flow.actor import *
 from migen.bank.description import *
-from migen.genlib.fsm import FSM
+from migen.genlib.fsm import FSM, NextState
 
 class I2CDataWriter(Module, AutoCSR):
 	def __init__(self, cycle_bits, data_bits):		
@@ -28,7 +28,7 @@ class I2CDataWriter(Module, AutoCSR):
 		self.ev_stop_high = Signal()
 		
 		# FSM
-		self.submodules.fsm = FSM("WAIT_DATA", "START_CONDITION", "TRANSFER_DATA", "ACK", "STOP_CONDITION")
+		self.submodules.fsm = FSM()
 		
 		# CSRs
 		self._pos_end_cycle = CSRStorage(cycle_bits, reset=300)
@@ -94,49 +94,45 @@ class I2CDataWriter(Module, AutoCSR):
 		]
 		
 		# control FSM
-		self.fsm.act(self.fsm.WAIT_DATA,
+		self.fsm.act("WAIT_DATA",
 			cycle_counter_reset.eq(1),
 			sr_load.eq(1),
-			If(self.pds,
-				self.fsm.next_state(self.fsm.START_CONDITION)
-			)
+			If(self.pds, NextState("START_CONDITION"))
 		)
-		self.fsm.act(self.fsm.START_CONDITION,
+		self.fsm.act("START_CONDITION",
 			self.busy.eq(1),
 			self.clk_high.eq(self.ev_clk_high),
 			self.clk_low.eq(self.ev_clk_low),
 			data_start.eq(self.ev_start),
-			If(self.eoc,
-				self.fsm.next_state(self.fsm.TRANSFER_DATA)
-			)
+			If(self.eoc, NextState("TRANSFER_DATA"))
 		)
-		self.fsm.act(self.fsm.TRANSFER_DATA,
+		self.fsm.act("TRANSFER_DATA",
 			self.busy.eq(1),
 			self.clk_high.eq(self.ev_clk_high),
 			self.clk_low.eq(self.ev_clk_low),
 			sr_shift.eq(self.ev_data),
 			If(self.eoc & (remaining_data[0:3] == 0),
-				self.fsm.next_state(self.fsm.ACK)
+				NextState("ACK")
 			)
 		)
-		self.fsm.act(self.fsm.ACK,
+		self.fsm.act("ACK",
 			self.busy.eq(1),
 			self.clk_high.eq(self.ev_clk_high),
 			self.clk_low.eq(self.ev_clk_low),
 			If(self.eoc,
 				If(remaining_data == 0,
-					self.fsm.next_state(self.fsm.STOP_CONDITION)
-				).Else(self.fsm.next_state(self.fsm.TRANSFER_DATA))
+					NextState("STOP_CONDITION")
+				).Else(
+					NextState("TRANSFER_DATA")
+				)
 			)
 		)
-		self.fsm.act(self.fsm.STOP_CONDITION,
+		self.fsm.act("STOP_CONDITION",
 			self.busy.eq(1),
 			self.clk_high.eq(self.ev_clk_high),
 			data_stop_low.eq(self.ev_stop_low),
 			data_stop_high.eq(self.ev_stop_high),
-			If(self.eoc,
-				self.fsm.next_state(self.fsm.WAIT_DATA)
-			)
+			If(self.eoc, NextState("WAIT_DATA"))
 		)
 
 class BBI2CDataWriter(Module, AutoCSR):
@@ -188,10 +184,10 @@ class PCA9555Driver(BBI2CDataWriter):
 			self.idw.pdi.eq(bitreverse(word)),
 			self.busy.eq(self.idw.busy)
 		]
-		self.idw.fsm.act(self.idw.fsm.WAIT_DATA, self.program.ack.eq(1))
+		self.idw.fsm.act("WAIT_DATA", self.program.ack.eq(1))
 		
 class SerialDataWriter(Module, AutoCSR):
-	def __init__(self, cycle_bits, data_bits, extra_fsm_states=[], def_end_cycle=20):
+	def __init__(self, cycle_bits, data_bits, def_end_cycle=20):
 		# I/O signals
 		self.d = Signal()
 		self.clk = Signal()
@@ -209,10 +205,9 @@ class SerialDataWriter(Module, AutoCSR):
 		self.ev_data = Signal()
 		
 		# FSM
-		fsm_states = ["WAIT_DATA", "TRANSFER_DATA"] + extra_fsm_states
-		self.submodules.fsm = FSM(*fsm_states)
-		self.start_action = [self.fsm.next_state(self.fsm.TRANSFER_DATA)]
-		self.end_action = [self.fsm.next_state(self.fsm.WAIT_DATA)]
+		self.fsm = FSM()
+		self.start_action = [NextState("TRANSFER_DATA")]
+		self.end_action = [NextState("WAIT_DATA")]
 		
 		# registers
 		self._pos_end_cycle = CSRStorage(cycle_bits, reset=def_end_cycle)
@@ -262,15 +257,17 @@ class SerialDataWriter(Module, AutoCSR):
 		]
 		
 	def do_finalize(self):
+		# FSM should be finalized after us
+		self.submodules += self.fsm
 		# control FSM
-		self.fsm.act(self.fsm.WAIT_DATA,
+		self.fsm.act("WAIT_DATA",
 			self.cycle_counter_reset.eq(1),
 			self.sr_load.eq(1),
 			If(self.pds,
 				*self.start_action
 			)
 		)
-		self.fsm.act(self.fsm.TRANSFER_DATA,
+		self.fsm.act("TRANSFER_DATA",
 			self.clk_high.eq(self.ev_clk_high),
 			self.clk_low.eq(self.ev_clk_low),
 			self.sr_shift.eq(self.ev_data),
@@ -282,8 +279,8 @@ class SerialDataWriter(Module, AutoCSR):
 # 6-bit RF digital attenuator
 class PE43602Driver(Module, AutoCSR):
 	def __init__(self, pads, cycle_bits=8):
-		self.submodules.sdw = SerialDataWriter(cycle_bits, 8, ["LE"], 12)
-		self.sdw.end_action = [self.sdw.fsm.next_state(self.sdw.fsm.LE)]
+		self.submodules.sdw = SerialDataWriter(cycle_bits, 8, 12)
+		self.sdw.end_action = [NextState("LE")]
 		
 		self._pos_le_high = CSRStorage(cycle_bits, reset=3)
 		self._pos_le_low = CSRStorage(cycle_bits, reset=9)
@@ -334,26 +331,26 @@ class PE43602Driver(Module, AutoCSR):
 		
 		# complete FSM
 		fsm = self.sdw.fsm
-		fsm.act(fsm.WAIT_DATA,
+		fsm.act("WAIT_DATA",
 			le_counter_reset.eq(1),
 			self.program.ack.eq(1)
 		)
-		fsm.act(fsm.TRANSFER_DATA,
+		fsm.act("TRANSFER_DATA",
 			le_counter_reset.eq(1),
 			self.busy.eq(1)
 		)
-		fsm.act(fsm.LE,
+		fsm.act("LE",
 			self.busy.eq(1),
 			le_high.eq(ev_le_high),
 			le_low.eq(ev_le_low),
-			If(ev_le_low, fsm.next_state(fsm.WAIT_DATA))
+			If(ev_le_low, NextState("WAIT_DATA"))
 		)
 
 class SPIWriter(Module, AutoCSR):
 	def __init__(self, cycle_bits, data_bits, def_end_cycle, bidir_data):
-		self.submodules.sdw = SerialDataWriter(cycle_bits, data_bits, ["FIRSTCLK", "CSN_HI"], def_end_cycle)
-		self.sdw.start_action = [self.sdw.fsm.next_state(self.sdw.fsm.FIRSTCLK)]
-		self.sdw.end_action = [self.sdw.fsm.next_state(self.sdw.fsm.CSN_HI)]
+		self.submodules.sdw = SerialDataWriter(cycle_bits, data_bits, def_end_cycle)
+		self.sdw.start_action = [NextState("FIRSTCLK")]
+		self.sdw.end_action = [NextState("CSN_HI")]
 		
 		self.csn = Signal(reset=1)
 		self.clk = Signal()
@@ -422,29 +419,27 @@ class SPIWriter(Module, AutoCSR):
 		
 		# complete FSM
 		fsm = self.sdw.fsm
-		fsm.act(fsm.FIRSTCLK,
+		fsm.act("FIRSTCLK",
 			self.sdw.clk_high.eq(self.sdw.ev_clk_high),
 			self.sdw.clk_low.eq(self.sdw.ev_clk_low),
-			If(self.sdw.eoc,
-				fsm.next_state(fsm.TRANSFER_DATA)
-			),
+			If(self.sdw.eoc, NextState("TRANSFER_DATA")),
 			self.spi_busy.eq(1)
 		)
-		fsm.act(fsm.TRANSFER_DATA,
+		fsm.act("TRANSFER_DATA",
 			If(self.sdw.ev_data,
 				# ENX shares the data timing
 				csn_low.eq(1)
 			),
 			self.spi_busy.eq(1)
 		)
-		fsm.act(fsm.CSN_HI,
+		fsm.act("CSN_HI",
 			self.sdw.clk_high.eq(self.sdw.ev_clk_high),
 			self.sdw.clk_low.eq(self.sdw.ev_clk_low),
 			If(self.sdw.ev_data,
 				csn_high.eq(1)
 			),
 			If(self.sdw.eoc,
-				fsm.next_state(fsm.WAIT_DATA)
+				NextState("WAIT_DATA")
 			),
 			self.spi_busy.eq(1)
 		)
@@ -478,7 +473,7 @@ class RFMDISMMDriver(SPIWriter):
 			self.sdw.pdi.eq(bitreverse(word)),
 			self.busy.eq(self.spi_busy)
 		]
-		self.sdw.fsm.act(self.sdw.fsm.WAIT_DATA, self.program.ack.eq(1))
+		self.sdw.fsm.act("WAIT_DATA", self.program.ack.eq(1))
 
 # Dual variable gain amplifier
 class LMH6521(SPIWriter):
@@ -507,4 +502,4 @@ class LMH6521(SPIWriter):
 			self.sdw.pdi.eq(bitreverse(word)),
 			self.busy.eq(self.spi_busy)
 		]
-		self.sdw.fsm.act(self.sdw.fsm.WAIT_DATA, self.program.ack.eq(1))
+		self.sdw.fsm.act("WAIT_DATA", self.program.ack.eq(1))

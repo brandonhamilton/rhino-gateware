@@ -37,18 +37,22 @@ class WaveformMemoryOut(Module, AutoCSR):
 			self.specials += port_i, port_q
 			nbits = bits_for(depth-1)+1
 			mem_a = Signal(nbits)
-			v_mem_a = Signal(nbits, variable=True)
-			self.sync.signal += [
-				v_mem_a.eq(mem_a),
+			next_mem_a0 = Signal(nbits)
+			next_mem_a = Signal(nbits)
+			self.comb += [
 				If(~play_en,
-					v_mem_a.eq(n*mult)
+					next_mem_a0.eq(n*mult)
 				).Else(
-					v_mem_a.eq(v_mem_a + spc*mult)
+					next_mem_a0.eq(mem_a + spc*mult)
 				),
-				If(v_mem_a >= size,
-					v_mem_a.eq(v_mem_a - size)
-				),
-				mem_a.eq(v_mem_a),
+				If(next_mem_a0 >= size,
+					next_mem_a.eq(next_mem_a0 - size)
+				).Else(
+					next_mem_a.eq(next_mem_a0)
+				)
+			]
+			self.sync.signal += [
+				mem_a.eq(next_mem_a),
 				getattr(self, "value_i" + str(n)).eq(port_i.dat_r),
 				getattr(self, "value_q" + str(n)).eq(port_q.dat_r)
 			]

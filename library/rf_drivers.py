@@ -1,5 +1,4 @@
 from migen.fhdl.std import *
-from migen.genlib.misc import bitreverse
 from migen.genlib.cdc import MultiReg
 from migen.flow.actor import *
 from migen.bank.description import *
@@ -181,7 +180,7 @@ class PCA9555Driver(BBI2CDataWriter):
 			self.idw.pds.eq(self.program.stb),
 			saddr.eq(addr),
 			word.eq(Cat(self.program.payload.data, self.program.payload.addr, 0, saddr)),
-			self.idw.pdi.eq(bitreverse(word)),
+			self.idw.pdi.eq(word[::-1]),
 			self.busy.eq(self.idw.busy)
 		]
 		self.idw.fsm.act("WAIT_DATA", self.program.ack.eq(1))
@@ -470,7 +469,7 @@ class RFMDISMMDriver(SPIWriter):
 		self.comb += [
 			self.sdw.pds.eq(self.program.stb),
 			word.eq(Cat(self.program.payload.data, self.program.payload.addr)),
-			self.sdw.pdi.eq(bitreverse(word)),
+			self.sdw.pdi.eq(word[::-1]),
 			self.busy.eq(self.spi_busy)
 		]
 		self.sdw.fsm.act("WAIT_DATA", self.program.ack.eq(1))
@@ -499,7 +498,7 @@ class LMH6521(SPIWriter):
 				self.program.payload.gain,
 				1,
 				self.program.payload.channel)),
-			self.sdw.pdi.eq(bitreverse(word)),
+			self.sdw.pdi.eq(word[::-1]),
 			self.busy.eq(self.spi_busy)
 		]
 		self.sdw.fsm.act("WAIT_DATA", self.program.ack.eq(1))

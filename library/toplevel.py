@@ -4,7 +4,7 @@ from itertools import count
 from migen.fhdl import verilog
 from migen.bank import csrgen
 from migen.bank.description import *
-from migen.bus import csr
+from migen.bus import csr, wishbone2csr
 from mibuild.tools import write_to_file
 
 from library.gpmc import GPMC
@@ -58,10 +58,10 @@ class GPMCToplevel(GenericToplevel):
 
 		self.submodules.gpmc_bridge = GPMC(
 			self.mibuild_platform.request("gpmc"),
-			self.mibuild_platform.request("gpmc_ce_n", 0),
-			self.mibuild_platform.request("gpmc_ce_n", 1),
-			[],	[], [])
-		self.submodules.csrcon = csr.Interconnect(self.gpmc_bridge.csr, self.csrbankarray.get_buses())
+			self.mibuild_platform.request("gpmc_ce_n", 0))
+		csr_bus = csr.Interface(csr_data_width)
+		self.submodules.csrcon = csr.Interconnect(csr_bus, self.csrbankarray.get_buses())
+		self.submodules.wishbone2csr = wishbone2csr.WB2CSR(self.gpmc_bridge.wishbone, csr_bus)
 	
 	def get_symtab(self):
 		csr_base = 0x08000000

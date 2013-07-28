@@ -6,8 +6,7 @@ from migen.bus import csr
 
 class GPMC(Module):
 	def __init__(self, gpmc_pads, csr_cs_pad, dma_cs_pad, dmareq_pads, streams_from, streams_to):
-		assert(csr.data_width == 16)
-		self.csr = csr.Interface()
+		self.csr = csr.Interface(data_width=16)
 		
 		if dmareq_pads or streams_from or streams_to:
 			raise NotImplementedError

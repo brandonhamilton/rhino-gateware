@@ -49,6 +49,8 @@ class GPMC(Module):
 
 		# Access Wishbone
 		self.sync += [
+			If(pulse_read.o, gpmc_dr_sys.eq(gpmc_dr_sys + 1)),
+			If(pulse_write.o, gpmc_dr_sys.eq(gpmc_dr_sys + 0x100)),
 			If(~self.wishbone.cyc & (pulse_read.o | pulse_write.o),
 				self.wishbone.cyc.eq(1),
 				self.wishbone.stb.eq(1),
@@ -59,7 +61,7 @@ class GPMC(Module):
 			If(self.wishbone.ack,
 				self.wishbone.cyc.eq(0),
 				self.wishbone.stb.eq(0),
-				gpmc_dr_sys.eq(self.wishbone.dat_r)
+				#gpmc_dr_sys.eq(self.wishbone.dat_r)
 			)
 		]
 		self.comb += self.wishbone.sel.eq(0b11),

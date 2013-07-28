@@ -9,11 +9,10 @@ from mibuild.tools import write_to_file
 
 from library.gpmc import GPMC
 
-# set CSR data width to 16-bit
-csr.data_width = 16
-
 BOF_PERM_READ = 0x01
 BOF_PERM_WRITE = 0x02
+
+csr_data_width = 16
 
 class GenericToplevel(Module):
 	def __init__(self, mkbof_hwrtyp, mibuild_platform, app_toplevel_class):
@@ -22,7 +21,8 @@ class GenericToplevel(Module):
 
 		self.submodules.app = app_toplevel_class(self.mibuild_platform)
 		adr_map = count()
-		self.submodules.csrbankarray = csrgen.BankArray(self.app, lambda name, memory: next(adr_map))
+		self.submodules.csrbankarray = csrgen.BankArray(self.app,
+			lambda name, memory: next(adr_map), data_width=csr_data_width)
 	
 	def get_symtab(self):
 		raise NotImplementedError("GenericToplevel.get_symtab must be overloaded")
@@ -74,7 +74,7 @@ class GPMCToplevel(GenericToplevel):
 					permission = BOF_PERM_WRITE|BOF_PERM_READ
 				else:
 					permission = BOF_PERM_READ
-				length = 2*((csr.data_width - 1 + c.size)//csr.data_width)
+				length = 2*((csr_data_width - 1 + c.size)//csr_data_width)
 				symtab.append((name + "_" + c.name, permission, reg_base, length))
 				reg_base += length
 		for name, memory, mapaddr, mmap in self.csrbankarray.srams:

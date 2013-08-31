@@ -51,9 +51,6 @@ def main():
 	application_module = imp.load_source(app_name, os.path.join(application_dir, "app_toplevel.py"))
 	toplevel = platform_module.Toplevel(application_module.AppToplevel)
 
-	for search_dir in search_dirs:
-		toplevel.mibuild_platform.add_source_dir(os.path.join(search_dir, "library", "hdl"))
-
 	orig_dir = os.getcwd()
 	os.chdir(application_dir)
 	toplevel.build()

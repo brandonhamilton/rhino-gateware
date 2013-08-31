@@ -9,7 +9,7 @@ class GPIOIn(Module, AutoCSR):
 
 class GPIOOut(Module, AutoCSR):
 	def __init__(self, signal):
-		self._r_out = CSRStorage(flen(signal))
+		self._r_out = CSRStorage(flen(signal), reset=3)
 		self.comb += signal.eq(self._r_out.storage)
 
 class Blinker(Module):

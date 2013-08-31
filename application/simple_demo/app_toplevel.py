@@ -5,7 +5,8 @@ from components.crg import CRGDiffBasic
 from components.gpio import Blinker, GPIOOut
 
 class AppToplevel(Module, AutoCSR):
-	def __init__(self, platform):
+	def __init__(self, stl):
+		platform = stl.mibuild_platform
 		if platform.name == "rhino":
 			self.submodules.crg = CRGDiffBasic(platform, platform.request("clk100"))
 		elif platform.name == "molerad":

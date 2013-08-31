@@ -4,7 +4,7 @@ from itertools import count
 from migen.fhdl import verilog
 from migen.bank import csrgen
 from migen.bank.description import *
-from migen.bus import csr
+from migen.bus import csr, wishbone, wishbone2csr
 from mibuild.tools import write_to_file
 
 from library.gpmc import GPMC
@@ -15,15 +15,39 @@ BOF_PERM_WRITE = 0x02
 csr_data_width = 16
 
 class GenericToplevel(Module):
-	def __init__(self, mkbof_hwrtyp, mibuild_platform, app_toplevel_class):
+	def __init__(self, csr_data_width, mkbof_hwrtyp, mibuild_platform, app_toplevel_class):
+		self.csr_data_width = csr_data_width
 		self.mkbof_hwrtyp = mkbof_hwrtyp
 		self.mibuild_platform = mibuild_platform
+		self._adr_generator = count()
+		self._adr_fixed = dict()
+		self.masters = []
 
-		self.submodules.app = app_toplevel_class(self.mibuild_platform)
-		adr_map = count()
+		self.submodules.app = app_toplevel_class(self)
 		self.submodules.csrbankarray = csrgen.BankArray(self.app,
-			lambda name, memory: next(adr_map), data_width=csr_data_width)
+			self.request_address, data_width=self.csr_data_width)
 	
+	def request_address(self, name, memory=None):
+		try:
+			return self._adr_fixed[(name, memory)]
+		except KeyError:
+			adr = next(self._adr_generator)
+			self._adr_fixed[(name, memory)] = adr
+			return adr
+
+	def request_master(self, master=None):
+		if master is None:
+			master = wishbone.Interface(self.csr_data_width)
+		self.masters.append(master)
+		return master
+
+	def do_finalize(self):
+		csr_bus = csr.Interface(self.csr_data_width)
+		wb_bus = wishbone.Interface(self.csr_data_width)
+		self.submodules.csrcon = csr.Interconnect(csr_bus, self.csrbankarray.get_buses())
+		self.submodules.wishbone2csr = wishbone2csr.WB2CSR(wb_bus, csr_bus)
+		self.submodules.wishbonecon = wishbone.InterconnectShared(self.masters, [(lambda a: 1, wb_bus)])
+
 	def get_symtab(self):
 		raise NotImplementedError("GenericToplevel.get_symtab must be overloaded")
 
@@ -54,14 +78,12 @@ class GenericToplevel(Module):
 
 class GPMCToplevel(GenericToplevel):
 	def __init__(self, *args, **kwargs):
-		GenericToplevel.__init__(self, *args, **kwargs)
+		GenericToplevel.__init__(self, 16, *args, **kwargs)
 
 		self.submodules.gpmc_bridge = GPMC(
 			self.mibuild_platform.request("gpmc"),
-			self.mibuild_platform.request("gpmc_ce_n", 0),
-			self.mibuild_platform.request("gpmc_ce_n", 1),
-			[],	[], [])
-		self.submodules.csrcon = csr.Interconnect(self.gpmc_bridge.csr, self.csrbankarray.get_buses())
+			self.mibuild_platform.request("gpmc_ce_n", 0))
+		self.request_master(self.gpmc_bridge.wishbone)
 	
 	def get_symtab(self):
 		csr_base = 0x08000000
@@ -74,7 +96,7 @@ class GPMCToplevel(GenericToplevel):
 					permission = BOF_PERM_WRITE|BOF_PERM_READ
 				else:
 					permission = BOF_PERM_READ
-				length = 2*((csr_data_width - 1 + c.size)//csr_data_width)
+				length = 2*((self.csr_data_width - 1 + c.size)//self.csr_data_width)
 				symtab.append((name + "_" + c.name, permission, reg_base, length))
 				reg_base += length
 		for name, memory, mapaddr, mmap in self.csrbankarray.srams:

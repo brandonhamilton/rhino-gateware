@@ -13,8 +13,7 @@
 Prerequisites
 -------------
 
- * Migen (https://github.com/milkymist/migen)
- * Mibuild (https://github.com/milkymist/mibuild)
+ * Migen (https://github.com/m-labs/migen)
  * mkbof (https://github.com/brandonhamilton/rhino/tree/master/borph/tools/borph)
  * Xilinx ISE command line tools
  * Python 3.3

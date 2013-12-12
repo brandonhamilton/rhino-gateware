@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import os, sys, imp, subprocess, argparse
+import os, sys, imp, argparse
 
 def try_import(search_dirs, path, name):
 	search_dirs = [os.path.join(search_dir, path) for search_dir in search_dirs]

@@ -1,7 +1,7 @@
 import os, stat, subprocess
 from itertools import count
 
-from migen.fhdl import verilog
+from migen.fhdl.simplify import FullMemoryWE
 from migen.bank import csrgen
 from migen.bank.description import *
 from migen.bus import csr, wishbone, wishbone2csr
@@ -59,7 +59,8 @@ class GenericToplevel(Module):
 		return r
 
 	def build(self):
-		self.mibuild_platform.build(self.get_fragment())
+		# FIXME: Workaround for Xst bug with byte-wide WEs connected to FSMs
+		self.mibuild_platform.build(FullMemoryWE(self))
 		symtab = self.get_formatted_symtab()
 		os.chdir("build")
 		build_name = "top"

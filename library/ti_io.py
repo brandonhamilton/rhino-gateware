@@ -374,7 +374,7 @@ class ADC(Module):
 				bits_b.append(~b_noninvert[i])
 			else:
 				bits_b.append(b_noninvert[i])
-		self.comb += [
+		self.sync.signal += [
 			self.a.eq(Cat(*bits_a)),
 			self.b.eq(Cat(*bits_b))
 		]

@@ -2,11 +2,6 @@ from migen.fhdl.std import *
 from migen.genlib.cdc import MultiReg, PulseSynchronizer
 from migen.bus import wishbone
 
-# TODO: support variable latency.
-# We currently assume WB cycles have terminated when the ARM is reading the result
-# or sending a new write.
-# TODO: support DMA
-
 class GPMC(Module):
 	def __init__(self, gpmc_pads, csr_cs_n_pad):
 		self.wishbone = wishbone.Interface(16)
@@ -63,3 +58,14 @@ class GPMC(Module):
 			)
 		]
 		self.comb += self.wishbone.sel.eq(0b11),
+
+		# Generate GPMC wait signal
+		pulse_done = PulseSynchronizer("sys", "gpmc")
+		self.submodules += pulse_done
+		self.comb += pulse_done.i.eq(self.wishbone.ack)
+		self.sync.gpmc += \
+			If(~gpmc_pads.ale_n,
+				gpmc_pads.wait.eq(1)
+			).Elif(pulse_done.o,
+				gpmc_pads.wait.eq(0)
+			)

@@ -386,7 +386,7 @@ class SPIWriter(Module, AutoCSR):
 		if bidir_data:
 			data_in_synced = Signal()
 			self.specials += MultiReg(self.data.i, data_in_synced)
-			self.comb += [
+			self.sync += \
 				If(self._bb_enable.storage,
 					self.data.o.eq(self._bb_out.storage[0]),
 					self.csn.eq(self._bb_out.storage[1]),
@@ -397,9 +397,8 @@ class SPIWriter(Module, AutoCSR):
 					self.csn.eq(csn),
 					self.clk.eq(self.sdw.clk),
 					self.data.oe.eq(1)
-				),
-				self._bb_miso.status.eq(data_in_synced)
-			]
+				)
+			self.comb += self._bb_miso.status.eq(data_in_synced)
 		else:
 			miso_synced = Signal()
 			self.specials += MultiReg(self.miso, miso_synced)

@@ -366,11 +366,11 @@ class ADC(Module):
 		bits_a = []
 		bits_b = []
 		for i in range(2*n_io):
-			if (i//2) in inversions_a:
+			if i//2 in inversions_a:
 				bits_a.append(~a_noninvert[i])
 			else:
 				bits_a.append(a_noninvert[i])
-			if (i//2) in inversions_b:
+			if i//2 in inversions_b:
 				bits_b.append(~b_noninvert[i])
 			else:
 				bits_b.append(b_noninvert[i])

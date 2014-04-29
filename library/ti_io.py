@@ -297,7 +297,7 @@ class DAC2X(_BaseDAC):
 			pads.frame_p, pads.frame_n)
 
 class ADC(Module):
-	def __init__(self, pads):
+	def __init__(self, pads, delayoddbits=False):
 		n_io = flen(pads.dat_a_p)
 		self.a = Signal(2*n_io)
 		self.b = Signal(2*n_io)
@@ -306,6 +306,8 @@ class ADC(Module):
 
 		a_noninvert = Signal(2*n_io)
 		b_noninvert = Signal(2*n_io)
+		a_buffered = []
+		b_buffered = []
 
 		for i in range(n_io):
 			single_ended_a = Signal()
@@ -354,7 +356,21 @@ class ADC(Module):
 					Instance.Input("S", 0)
 				)
 			}
-
+			
+			if delayoddbits:
+				a_buffered.append(a_noninvert[2*i])
+				b_buffered.append(b_noninvert[2*i])
+				a_buffered.append(Signal())
+				b_buffered.append(Signal())
+				
+				self.sync.signal += a_buffered[2*i+1].eq(a_noninvert[2*i+1])
+				self.sync.signal += b_buffered[2*i+1].eq(b_noninvert[2*i+1])
+			else:
+				a_buffered.append(a_noninvert[2*i])
+				b_buffered.append(b_noninvert[2*i])
+				a_buffered.append(a_noninvert[2*i+1])
+				b_buffered.append(b_noninvert[2*i+1])
+		
 		try:
 			inversions_a = pads.platform_info["inverted_pairs_a"]
 		except (AttributeError, KeyError):
@@ -367,13 +383,13 @@ class ADC(Module):
 		bits_b = []
 		for i in range(2*n_io):
 			if i//2 in inversions_a:
-				bits_a.append(~a_noninvert[i])
+				bits_a.append(~a_buffered[i])
 			else:
-				bits_a.append(a_noninvert[i])
+				bits_a.append(a_buffered[i])
 			if i//2 in inversions_b:
-				bits_b.append(~b_noninvert[i])
+				bits_b.append(~b_buffered[i])
 			else:
-				bits_b.append(b_noninvert[i])
+				bits_b.append(b_buffered[i])
 		self.sync.signal += [
 			self.a.eq(Cat(*bits_a)),
 			self.b.eq(Cat(*bits_b))
